@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC6D7"/>
+      <stop offset="1" stop-color="#FF8FB1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g transform="rotate(-13 196 262)">
+    <rect x="160" y="64" width="74" height="206" rx="37" fill="#fff"/>
+    <rect x="179" y="92" width="36" height="150" rx="18" fill="#FFC9D9"/>
+  </g>
+  <g transform="rotate(13 316 262)">
+    <rect x="278" y="64" width="74" height="206" rx="37" fill="#fff"/>
+    <rect x="297" y="92" width="36" height="150" rx="18" fill="#FFC9D9"/>
+  </g>
+  <rect x="84" y="214" width="344" height="220" rx="46" fill="#fff"/>
+  <circle cx="164" cy="296" r="36" fill="#FFC9D9"/>
+  <rect x="220" y="272" width="156" height="20" rx="10" fill="#F6D5E0"/>
+  <rect x="220" y="306" width="112" height="20" rx="10" fill="#F6D5E0"/>
+  <rect x="124" y="362" width="264" height="20" rx="10" fill="#FFE3EC"/>
+  <path d="M376 384c-16-12-34-24-34-40 0-10 8-17 17-17 7 0 13 4 17 10 4-6 10-10 17-10 9 0 17 7 17 17 0 16-18 28-34 40z" fill="#E0547F"/>
+</svg>

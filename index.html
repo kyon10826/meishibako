@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>めいしばこ</title>
+<meta name="description" content="名刺をかわいく整理できる名刺箱アプリ。名刺はあなたの端末の中だけに保存されます。">
+<meta name="theme-color" content="#FFF6F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#251D23" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="めいしばこ">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta property="og:type" content="website">
+<meta property="og:title" content="めいしばこ">
+<meta property="og:description" content="名刺をかわいく整理できる名刺箱アプリ。ログイン不要で、名刺はあなたの端末の中だけに保存されます。">
+<meta property="og:url" content="https://kyon10826.github.io/meishibako/">
+<meta property="og:image" content="https://kyon10826.github.io/meishibako/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+<style>
+/* レイアウト: 上部に固定ヘッダー、パステルの名刺カードをグリッドで並べ、詳細と編集はモーダル */
+:root{
+  --bg:#FFF6F8; --dot:#FFE3EC; --surface:#FFFFFF; --field:#FFFBFC; --header:rgba(255,246,248,.92);
+  --pink:#FF8FB1; --pink-deep:#E0547F; --pink-soft:#FFE3EC; --on-pink:#FFFFFF;
+  --text:#5A4650; --text-sub:#8E7480; --line:#F6D5E0;
+  --danger:#D94848; --danger-line:#FFC2C2;
+  --c0:#FFE3EC; --c1:#BDEFD9; --c2:#FFF3B8; --c3:#E6DDFF; --c4:#FFE0CC; --c5:#D6EEFF;
+  --shadow:0 6px 18px rgba(224,84,127,.12); --scrim:rgba(90,70,80,.38);
+  --toast-bg:#5A4650; --toast-fg:#FFFFFF;
+  --font:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+  --radius:22px;
+  --gutter-l:max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r:max(16px, env(safe-area-inset-right, 0px));
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#251D23; --dot:#33272F; --surface:#33282F; --field:#2B2228; --header:rgba(37,29,35,.92);
+    --pink:#FF8FB1; --pink-deep:#FFA6C3; --pink-soft:#4A3040; --on-pink:#3A1F2B;
+    --text:#F6E7EE; --text-sub:#C3A9B5; --line:#4F3E48;
+    --danger:#FF8A8A; --danger-line:#6A3A3F;
+    --c0:#6B3A50; --c1:#2F5C4C; --c2:#655629; --c3:#4B4277; --c4:#6E4632; --c5:#2E4F6B;
+    --shadow:0 6px 18px rgba(0,0,0,.35); --scrim:rgba(0,0,0,.55);
+    --toast-bg:#F6E7EE; --toast-fg:#251D23;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#251D23; --dot:#33272F; --surface:#33282F; --field:#2B2228; --header:rgba(37,29,35,.92);
+  --pink:#FF8FB1; --pink-deep:#FFA6C3; --pink-soft:#4A3040; --on-pink:#3A1F2B;
+  --text:#F6E7EE; --text-sub:#C3A9B5; --line:#4F3E48;
+  --danger:#FF8A8A; --danger-line:#6A3A3F;
+  --c0:#6B3A50; --c1:#2F5C4C; --c2:#655629; --c3:#4B4277; --c4:#6E4632; --c5:#2E4F6B;
+  --shadow:0 6px 18px rgba(0,0,0,.35); --scrim:rgba(0,0,0,.55);
+  --toast-bg:#F6E7EE; --toast-fg:#251D23;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;
+  background-image:radial-gradient(var(--dot) 2px,transparent 2px);background-size:26px 26px;min-height:100vh;min-height:100dvh}
+button,input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+button:disabled{opacity:.6;cursor:wait}
+a{color:var(--pink-deep)}
+:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+
+header{position:sticky;top:0;z-index:10;background:var(--header);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:2px dashed var(--line);padding-top:env(safe-area-inset-top,0px)}
+.wrap{max-width:1100px;margin:0 auto;padding-left:var(--gutter-l);padding-right:var(--gutter-r)}
+.head-inner{padding-block:14px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.logo{font-size:24px;font-weight:700;color:var(--pink-deep);display:flex;align-items:center;gap:8px;margin:0;white-space:nowrap}
+.role{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--pink-soft);color:var(--pink-deep);margin-right:auto;white-space:nowrap}
+.search{flex:1 1 220px;max-width:360px;position:relative}
+.search input{width:100%;padding:10px 14px 10px 38px;border:2px solid var(--line);border-radius:999px;background:var(--surface);outline:none;-webkit-appearance:none;appearance:none}
+.search input:focus{border-color:var(--pink)}
+.search span{position:absolute;left:13px;top:50%;transform:translateY(-50%)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:999px;font-weight:700;transition:transform .12s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn-main{background:var(--pink);color:var(--on-pink);box-shadow:0 4px 0 var(--pink-deep)}
+.btn-sub{background:var(--surface);border:2px solid var(--line)}
+.btn-danger{background:var(--surface);border:2px solid var(--danger-line);color:var(--danger)}
+.btn-danger.armed{background:var(--danger);color:var(--surface);border-color:var(--danger)}
+
+.toolbar{padding-block:14px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{padding:6px 14px;border-radius:999px;background:var(--surface);border:2px solid var(--line);font-size:14px}
+.chip.on{background:var(--pink);border-color:var(--pink);color:var(--on-pink)}
+.toolbar select{padding:6px 12px;border-radius:999px;border:2px solid var(--line);background:var(--surface);margin-left:auto}
+.count{color:var(--text-sub);font-size:13px;margin:0 0 8px;font-variant-numeric:tabular-nums}
+
+main{padding-block:16px 40px}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:2px dashed var(--pink);border-radius:18px;padding:12px 16px;margin-bottom:16px}
+.banner p{margin:0;min-width:0;flex:1 1 240px;font-size:14px}
+.banner-btns{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:18px}
+.card{position:relative;display:block;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;text-align:left;width:100%;
+  border:2px solid transparent;transition:transform .15s,border-color .15s;overflow:hidden}
+button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--pink)}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:8px;background:var(--accent,var(--c0))}
+.card-top{display:flex;gap:12px;align-items:center;margin-top:4px}
+.card-top > .who{min-width:0;padding-right:70px}
+.avatar{flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:700;background:var(--accent,var(--c0));color:var(--text);overflow:hidden;box-shadow:0 0 0 3px var(--accent,var(--c0))}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.card-name{display:block;font-size:18px;font-weight:700;margin:0;word-break:break-all}
+.card-company{display:block;font-size:13px;color:var(--text-sub);margin:0;word-break:break-all}
+.hearts{position:absolute;top:14px;right:14px;font-size:14px;letter-spacing:1px}
+.card-info{margin-top:10px;font-size:13px;color:var(--text-sub);display:grid;gap:2px}
+.card-info span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sample-tag{position:absolute;bottom:12px;right:14px;font-size:11px;font-weight:700;color:var(--pink-deep);border:1.5px dashed var(--pink);border-radius:999px;padding:1px 10px}
+.card.sample{opacity:.85;cursor:default}
+
+.empty{text-align:center;padding:28px 16px 8px;color:var(--text-sub)}
+.empty .big{font-size:56px;display:block;margin-bottom:4px;animation:bob 2.4s ease-in-out infinite}
+.empty small{display:inline-block;margin-top:6px}
+@keyframes bob{50%{transform:translateY(-8px)}}
+
+.fab{position:fixed;right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:62px;height:62px;border-radius:50%;background:var(--pink);color:var(--on-pink);font-size:32px;box-shadow:0 5px 0 var(--pink-deep),var(--shadow);z-index:20;line-height:1}
+.fab:hover{transform:scale(1.08)}
+
+.overlay{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay.show{display:flex;animation:fade .18s}
+@keyframes fade{from{opacity:0}}
+.modal{background:var(--surface);border-radius:28px;width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow:auto;padding:24px;box-shadow:var(--shadow);animation:pop .22s cubic-bezier(.3,1.4,.6,1);overscroll-behavior:contain}
+@keyframes pop{from{transform:scale(.9);opacity:0}}
+.modal h2{margin:0 0 16px;color:var(--pink-deep);font-size:20px;display:flex;align-items:center;gap:8px;text-wrap:balance}
+.field{margin-bottom:14px}
+.field > label,.field > .lbl{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
+.req{color:var(--pink-deep);font-size:11px;margin-left:4px}
+.field input,.field textarea,.field select{width:100%;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:var(--field);outline:none;font-size:16px}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--pink);background:var(--surface)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.sns-row{display:flex;gap:6px;margin-bottom:6px}
+.sns-row select{width:120px;flex:none}
+.sns-row input{min-width:0}
+.sns-row button{flex:none;width:36px;border-radius:12px;background:var(--pink-soft)}
+.add-link{font-size:13px;color:var(--pink-deep);font-weight:700;padding:4px 0}
+
+.imp-pick{display:flex;gap:8px;flex-wrap:wrap}
+.imp-pick button{flex:1;min-width:110px;padding:10px 6px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-size:13px}
+.imp-pick button.on{border-color:var(--pink);background:var(--pink-soft);font-weight:700}
+
+.drop{border:2.5px dashed var(--pink);border-radius:18px;padding:18px;text-align:center;background:var(--field);color:var(--text-sub);cursor:pointer;display:block}
+.drop.over{background:var(--pink-soft)}
+.drop img{max-width:100%;max-height:220px;border-radius:12px;display:block;margin:0 auto 8px}
+.colors{display:flex;gap:8px;flex-wrap:wrap}
+.colors button{width:32px;height:32px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 2px var(--line)}
+.colors button.on{box-shadow:0 0 0 3px var(--pink-deep)}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+
+.detail-head{display:flex;gap:14px;align-items:center;margin-bottom:16px;padding-right:28px}
+.detail-head > div:last-child{min-width:0}
+.detail-head .avatar{width:72px;height:72px;font-size:28px}
+.sub{color:var(--text-sub)}
+.detail-img{width:100%;border-radius:16px;margin-bottom:14px;cursor:zoom-in;box-shadow:var(--shadow);background:var(--field);min-height:80px;object-fit:contain}
+.info-list{display:grid;gap:8px}
+.info{display:flex;gap:10px;align-items:flex-start;background:var(--field);border-radius:14px;padding:10px 12px}
+.info > div{min-width:0;flex:1}
+.info .ic{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--pink-soft);font-size:15px}
+.info .lb{font-size:11px;color:var(--text-sub)}
+.info .vl{word-break:break-all;-webkit-user-select:text;user-select:text}
+.copy{flex:none;align-self:center;font-size:12px;font-weight:700;color:var(--pink-deep);border:2px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.close-x{position:sticky;float:right;top:0;width:34px;height:34px;border-radius:50%;background:var(--pink-soft);font-size:16px;margin:-8px -8px 0 0;z-index:1}
+.memo{white-space:pre-wrap}
+.stamp{font-size:12px;color:var(--text-sub);margin:12px 0 0;text-align:right}
+
+.zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:80;padding:16px;cursor:zoom-out}
+.zoom.show{display:flex}
+.zoom img{max-width:100%;max-height:100%;border-radius:12px}
+
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--toast-bg);color:var(--toast-fg);padding:10px 20px;border-radius:20px;opacity:0;transition:.25s;pointer-events:none;z-index:90;max-width:calc(100% - 32px);text-align:center;width:max-content}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.foot{padding-top:0;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:10px}
+.foot-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.foot .btn{font-size:13px;padding:8px 14px}
+.note{font-size:12px;color:var(--text-sub);text-align:center;max-width:36em;margin:0}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head-inner">
+    <h1 class="logo"><span aria-hidden="true">🐰</span>めいしばこ</h1>
+    <span class="role">🔒 この端末だけに保存</span>
+    <label class="search"><span aria-hidden="true">🔍</span><input id="q" type="search" placeholder="なまえ・会社・メールでさがす" aria-label="検索" enterkeyhint="search"></label>
+  </div>
+</header>
+
+<div class="wrap toolbar">
+  <button type="button" class="chip on" data-imp="0">ぜんぶ</button>
+  <button type="button" class="chip" data-imp="3">💖💖💖 とってもだいじ</button>
+  <button type="button" class="chip" data-imp="2">💖💖 だいじ</button>
+  <button type="button" class="chip" data-imp="1">💖 ふつう</button>
+  <select id="sort" aria-label="並び替え">
+    <option value="new">あたらしい順</option>
+    <option value="old">ふるい順</option>
+    <option value="name">なまえ順</option>
+    <option value="imp">重要度順</option>
+  </select>
+</div>
+
+<main class="wrap">
+  <div class="banner" id="iosTip" hidden>
+    <p>📲 ホーム画面に追加すると、アプリのように使えて名刺も消えにくくなります。Safari の共有ボタン → 「ホーム画面に追加」を選んでね。</p>
+    <button type="button" class="btn btn-sub" id="iosTipClose">とじる</button>
+  </div>
+  <div class="banner" id="nudge" hidden>
+    <p id="nudgeMsg"></p>
+    <div class="banner-btns">
+      <button type="button" class="btn btn-sub" id="nudgeLater">あとで</button>
+      <button type="button" class="btn btn-main" id="nudgeSave">📦 バックアップ保存</button>
+    </div>
+  </div>
+  <p class="count" id="count"></p>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden><span class="big" aria-hidden="true">🐰</span><div id="emptyMsg"></div></div>
+</main>
+
+<footer class="wrap foot">
+  <div class="foot-btns">
+    <button type="button" class="btn btn-sub" id="exportBtn" hidden>📦 バックアップ保存</button>
+    <button type="button" class="btn btn-sub" id="importBtn" hidden>📂 バックアップ読み込み</button>
+    <button type="button" class="btn btn-sub" id="installBtn" hidden>📲 アプリとして追加</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <p class="note" id="backupInfo"></p>
+  <p class="note">名刺はこの端末のブラウザの中だけに保存され、どこにも送信されません。ブラウザのデータを消したり機種変更したりすると消えてしまうので、ときどき「バックアップ保存」をしてください。別の端末には、バックアップファイルを読み込めば移せます。</p>
+</footer>
+
+<button type="button" class="fab" id="addBtn" aria-label="名刺を追加" hidden>＋</button>
+
+<div class="overlay" id="editOv">
+  <form class="modal" id="form" autocomplete="off" novalidate>
+    <h2 id="formTitle">🌸 名刺をついか</h2>
+    <div class="field">
+      <span class="lbl">名刺の画像</span>
+      <label class="drop" id="drop">
+        <img id="preview" hidden alt="">
+        <span id="dropMsg"></span>
+        <input type="file" id="img" accept="image/*" hidden>
+      </label>
+      <button type="button" class="add-link" id="rmImg" hidden>✕ 画像をはずす</button>
+    </div>
+    <div class="field"><label for="f-name">なまえ<span class="req">ひっす</span></label><input id="f-name" required placeholder="山田 花子" maxlength="200"></div>
+    <div class="field"><label for="f-company">会社名</label><input id="f-company" placeholder="株式会社もふもふ" maxlength="200"></div>
+    <div class="row2">
+      <div class="field"><label for="f-tel">電話番号</label><input id="f-tel" type="tel" placeholder="090-1234-5678" maxlength="100"></div>
+      <div class="field"><label for="f-mail">メールアドレス</label><input id="f-mail" type="email" placeholder="hanako@example.com" maxlength="254"></div>
+    </div>
+    <div class="field"><label for="f-addr">住所</label><input id="f-addr" placeholder="東京都〇〇区…" maxlength="500"></div>
+    <div class="field">
+      <span class="lbl">SNS（あれば）</span>
+      <div id="snsList"></div>
+      <button type="button" class="add-link" id="addSns">＋ SNSをついか</button>
+    </div>
+    <div class="field">
+      <span class="lbl">重要度</span>
+      <div class="imp-pick" id="impPick">
+        <button type="button" data-v="1">💖<br>ふつう</button>
+        <button type="button" data-v="2">💖💖<br>だいじ</button>
+        <button type="button" data-v="3">💖💖💖<br>とってもだいじ</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl">カードの色</span>
+      <div class="colors" id="colorPick"></div>
+    </div>
+    <div class="field"><label for="f-memo">メモ</label><textarea id="f-memo" rows="3" placeholder="どこで会ったか、など" maxlength="5000"></textarea></div>
+    <div class="actions">
+      <button type="button" class="btn btn-sub" id="cancelBtn">やめる</button>
+      <button type="submit" class="btn btn-main" id="saveBtn">💾 ほぞん</button>
+    </div>
+  </form>
+</div>
+
+<div class="overlay" id="detailOv"><div class="modal" id="detail" role="dialog" aria-modal="true"></div></div>
+<div class="zoom" id="zoom"><img alt="名刺の画像"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- 定数・小さな道具 ---------- */
+const COLORS = ['c0','c1','c2','c3','c4','c5'];
+const LEGACY_HEX = ['#FFE3EC','#BDEFD9','#FFF3B8','#E6DDFF','#FFE0CC','#D6EEFF'];
+const normColor = c => { if (COLORS.includes(c)) return c; const i = LEGACY_HEX.indexOf(String(c || '').toUpperCase()); return i >= 0 ? COLORS[i] : 'c0'; };
+const colorVar = c => `var(--${normColor(c)})`;
+const SNS = ['X','Instagram','Facebook','LINE','LinkedIn','TikTok','YouTube','その他'];
+const IMP_LABEL = {1:'ふつう',2:'だいじ',3:'とってもだいじ'};
+const SAMPLE = {name:'もふ田 うさこ', company:'株式会社にんじん堂', tel:'03-0000-0000', email:'usako@example.com', importance:2, color:'c1'};
+const DAY = 864e5, NUDGE_AFTER = 7 * DAY, SNOOZE = 3 * DAY;
+const IMG_MAX = 1600, THUMB_MAX = 200;
+const BACKUP_APP = 'meishibako', BACKUP_VERSION = 1;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hearts = n => '💖'.repeat(n) + '🤍'.repeat(3 - n);
+const first = s => Array.from(String(s || '?'))[0] || '?';
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const safeId = id => (/^[A-Za-z0-9_\-.~:@+]{1,100}$/.test(id) && id !== '.' && id !== '..') ? id : newId();
+const str = (v, max) => String(v ?? '').trim().slice(0, max);
+const num = v => (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0;
+const isThumb = s => typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(s);
+const isMail = s => /^[^\s@<>"']+@[^\s@<>"']+$/.test(s);
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isMobile = isIOS || /android/i.test(navigator.userAgent);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ls = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch {} }
+};
+const fmtDate = t => { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
+const ymd = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+/* ---------- 状態 ---------- */
+let idb = null;
+let state = 'loading';            // loading | ready | error | stale
+let cards = [], filterImp = 0, editing = null, formImg = null, formImp = 1, formColor = 'c0';
+let meta = {dirtySince: null, lastBackup: null, snoozeUntil: 0};
+let detailUrl = null, detailToken = 0, installEvt = null, persistAsked = false;
+const bc = 'BroadcastChannel' in window ? new BroadcastChannel('meishibako') : null;
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), Math.max(2400, msg.length * 90));
+}
+function saveErrorMsg(e){
+  if (e?.name === 'QuotaExceededError') return '端末の保存容量がいっぱいです。いらない名刺を削除するか、画像をはずしてください';
+  return '保存できませんでした。もう一度ためしてください';
+}
+
+/* ---------- 端末内データベース（IndexedDB） ----------
+   cards : 名刺の文字データと小さなサムネイル（keyPath: id）
+   images: 名刺画像の本体 {type, data: ArrayBuffer}（キー: 名刺id）
+   meta  : バックアップの記録など */
+const DB_NAME = 'meishibako', DB_VER = 1;
+function openDB(){
+  return new Promise((res, rej) => {
+    let r;
+    try { r = indexedDB.open(DB_NAME, DB_VER); } catch (e) { rej(e); return; }
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains('cards')) d.createObjectStore('cards', {keyPath: 'id'});
+      if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+      if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error('blocked'));
+  });
+}
+const req = r => { const p = new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); p.catch(() => {}); return p; };
+const done = t => new Promise((res, rej) => { t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('aborted')); });
+async function dbGetAll(){ const t = idb.transaction('cards'); const r = req(t.objectStore('cards').getAll()); await done(t); return r; }
+// image: undefined=そのまま / null=消す / {type, data}=差しかえ
+async function dbPut(card, image){
+  const t = idb.transaction(['cards', 'images'], 'readwrite');
+  t.objectStore('cards').put(card);
+  if (image === null) t.objectStore('images').delete(card.id);
+  else if (image) t.objectStore('images').put(image, card.id);
+  await done(t);
+}
+async function dbDelete(id){
+  const t = idb.transaction(['cards', 'images'], 'readwrite');
+  t.objectStore('cards').delete(id); t.objectStore('images').delete(id);
+  await done(t);
+}
+async function dbImage(id){
+  const t = idb.transaction('images'); const r = req(t.objectStore('images').get(id)); await done(t);
+  const v = await r; return v && v.data ? new Blob([v.data], {type: v.type || 'image/jpeg'}) : null;
+}
+const META_KEYS = ['dirtySince', 'lastBackup', 'snoozeUntil'];
+async function dbMeta(){
+  const t = idb.transaction('meta'); const s = t.objectStore('meta');
+  const rs = META_KEYS.map(k => req(s.get(k))); await done(t);
+  (await Promise.all(rs)).forEach((v, i) => { if (v !== undefined) meta[META_KEYS[i]] = v; });
+}
+async function setMeta(patch){
+  Object.assign(meta, patch);
+  const t = idb.transaction('meta', 'readwrite'); const s = t.objectStore('meta');
+  for (const [k, v] of Object.entries(patch)) s.put(v, k);
+  await done(t);
+}
+async function reload(){
+  try { cards = (await dbGetAll()).filter(c => c && c.name); await dbMeta(); state = 'ready'; }
+  catch { state = 'error'; }
+  render();
+}
+async function afterWrite(){
+  if (!meta.dirtySince) { try { await setMeta({dirtySince: Date.now()}); } catch {} }
+  bc?.postMessage('changed');
+  await reload();
+}
+if (bc) bc.onmessage = () => { if (idb) reload(); };
+function askPersist(){
+  if (persistAsked || !navigator.storage?.persist) return;
+  persistAsked = true;
+  navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
+}
+
+/* ---------- 一覧 ---------- */
+function cardHTML(c, sample){
+  const tag = sample ? 'div' : 'button';
+  const av = isThumb(c.thumb) ? `<img src="${esc(c.thumb)}" alt="">` : esc(first(c.name));
+  return `<${tag} class="card${sample ? ' sample' : ''}"${sample ? '' : ` type="button" data-id="${esc(c.id)}"`} style="--accent:${colorVar(c.color)}">
+      <span class="hearts" title="${esc(IMP_LABEL[c.importance] || '')}">${hearts(c.importance || 1)}</span>
+      <span class="card-top">
+        <span class="avatar">${av}</span>
+        <span class="who">
+          <span class="card-name">${esc(c.name)}</span>
+          ${c.company ? `<span class="card-company">🏢 ${esc(c.company)}</span>` : ''}
+        </span>
+      </span>
+      <span class="card-info">
+        ${c.tel ? `<span>📞 ${esc(c.tel)}</span>` : ''}
+        ${c.email ? `<span>✉️ ${esc(c.email)}</span>` : ''}
+      </span>
+      ${sample ? '<span class="sample-tag">見本</span>' : ''}
+    </${tag}>`;
+}
+function render(){
+  const q = $('#q').value.trim().toLowerCase();
+  const list = cards.filter(c => (!filterImp || c.importance === filterImp) &&
+    (!q || [c.name, c.company, c.email, c.tel, c.address, c.memo, ...(c.sns || []).map(s => s.value)].join(' ').toLowerCase().includes(q)));
+  const sort = $('#sort').value;
+  list.sort((a, b) => sort === 'old' ? a.created - b.created
+    : sort === 'name' ? a.name.localeCompare(b.name, 'ja')
+    : sort === 'imp' ? (b.importance - a.importance) || (b.created - a.created)
+    : b.created - a.created);
+  const ready = state === 'ready';
+  const showSample = !ready || !cards.length;
+  $('#grid').innerHTML = showSample ? cardHTML(SAMPLE, true) : list.map(c => cardHTML(c)).join('');
+  $('#count').textContent = ready && cards.length ? `${list.length} / ${cards.length} 枚` : '';
+  $('#empty').hidden = !showSample && list.length > 0;
+  $('#emptyMsg').innerHTML =
+      state === 'loading' ? '名刺を読み込んでいます…'
+    : state === 'stale'   ? 'アプリが新しくなりました。ページを開き直してください。'
+    : state === 'error'   ? 'このブラウザでは名刺を保存できません。<br>プライベートブラウズを使っている場合は、ふつうのウィンドウで開いてください。'
+    : !cards.length       ? 'まだ名刺がありません。上は見本です。<br>右下の ＋ から1枚目を追加してね。<br><small>前の「めいしばこ」のバックアップがあれば、下の「📂 バックアップ読み込み」から移せます。</small>'
+    : 'みつかりませんでした…';
+  $('#addBtn').hidden = !ready;
+  $('#exportBtn').hidden = !ready;
+  $('#importBtn').hidden = !ready;
+  renderBanners();
+}
+function renderBanners(){
+  const now = Date.now(), ready = state === 'ready';
+  const nudge = ready && cards.length > 0 && meta.dirtySince && now - meta.dirtySince >= NUDGE_AFTER && now >= (meta.snoozeUntil || 0);
+  $('#nudge').hidden = !nudge;
+  if (nudge) $('#nudgeMsg').textContent = meta.lastBackup
+    ? `さいごのバックアップ（${fmtDate(meta.lastBackup)}）のあとに、追加や変更があります。バックアップを保存しておくと、スマホをなくしたときも安心です。`
+    : 'まだバックアップがありません。バックアップを保存しておくと、スマホをなくしたり機種変更したりしても名刺を戻せます。';
+  $('#iosTip').hidden = !(isIOS && !isStandalone() && ls.get('meishibako:iosTipClosed') !== '1');
+  $('#installBtn').hidden = !installEvt;
+  $('#backupInfo').textContent = !ready ? ''
+    : meta.lastBackup ? `さいごのバックアップ：${fmtDate(meta.lastBackup)}`
+    : cards.length ? 'まだバックアップしていません' : '';
+}
+
+/* ---------- 画像 ---------- */
+function loadImg(blob){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob), im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); res(im); };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode')); };
+    im.src = url;
+  });
+}
+function drawJpeg(im, max){
+  const r = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(im.naturalWidth * r)); cv.height = Math.max(1, Math.round(im.naturalHeight * r));
+  const cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.drawImage(im, 0, 0, cv.width, cv.height);
+  return cv;
+}
+const canvasBlob = (cv, q) => new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', q));
+// 画像は最大1600pxのJPEGにそろえ、一覧用の小さなサムネイルも作る
+async function processImage(src){
+  const im = await loadImg(src);
+  if (!im.naturalWidth || !im.naturalHeight) throw new Error('empty');
+  const fits = src.type === 'image/jpeg' && Math.max(im.naturalWidth, im.naturalHeight) <= IMG_MAX && src.size <= 1.5e6;
+  const blob = fits ? src : await canvasBlob(drawJpeg(im, IMG_MAX), .85);
+  const thumb = drawJpeg(im, THUMB_MAX).toDataURL('image/jpeg', .8);
+  return {blob, thumb};
+}
+function dataURLtoBlob(u){
+  const m = /^data:([^;,]+)((?:;[^;,]*)*?);base64,([\s\S]*)$/.exec(u);
+  if (!m) throw new Error('bad data url');
+  const bin = atob(m[3].replace(/\s/g, '')), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: m[1]});
+}
+const blobToDataURL = b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(fr.error); fr.readAsDataURL(b); });
+
+/* ---------- フォーム ---------- */
+function snsRow(type = 'X', value = ''){
+  const d = document.createElement('div'); d.className = 'sns-row';
+  d.innerHTML = `<select aria-label="SNSの種類">${SNS.map(s => `<option${s === type ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>
+    <input placeholder="@id または URL" aria-label="SNSのIDまたはURL" maxlength="300" value="${esc(value)}"><button type="button" aria-label="このSNSを削除">✕</button>`;
+  d.querySelector('button').onclick = () => d.remove();
+  $('#snsList').appendChild(d);
+}
+function setImp(v){ formImp = v; document.querySelectorAll('#impPick button').forEach(b => b.classList.toggle('on', +b.dataset.v === v)); }
+function setColor(v){ formColor = v; document.querySelectorAll('#colorPick button').forEach(b => b.classList.toggle('on', b.dataset.c === v)); }
+// formImg: null | {keep:true, url, own} 今の画像のまま | {blob, thumb, url, own:true} 新しく選んだ画像
+function setImg(img){
+  if (formImg?.own && formImg.url) URL.revokeObjectURL(formImg.url);
+  formImg = img;
+  const src = img?.url || '';
+  $('#preview').hidden = !src; $('#rmImg').hidden = !img;
+  if (src) $('#preview').src = src; else $('#preview').removeAttribute('src');
+  $('#dropMsg').innerHTML = img ? '<small>タップして画像をかえる</small>' : '📷 タップして画像をえらぶ<br><small>（カメラで撮影・ドラッグ＆ドロップもOK）</small>';
+}
+function openForm(card){
+  if (state !== 'ready') return;
+  editing = card || null;
+  $('#formTitle').textContent = card ? '✏️ 名刺をへんしゅう' : '🌸 名刺をついか';
+  $('#f-name').value = card?.name || ''; $('#f-company').value = card?.company || '';
+  $('#f-tel').value = card?.tel || ''; $('#f-mail').value = card?.email || '';
+  $('#f-addr').value = card?.address || ''; $('#f-memo').value = card?.memo || '';
+  $('#snsList').innerHTML = ''; (card?.sns || []).forEach(s => snsRow(s.type, s.value));
+  setImp(card?.importance || 1);
+  setColor(card ? normColor(card.color) : COLORS[Math.floor(Math.random() * COLORS.length)]);
+  setImg(card?.hasImage ? {keep: true, url: isThumb(card.thumb) ? card.thumb : ''} : null);
+  if (card?.hasImage) dbImage(card.id).then(b => {
+    if (b && editing === card && formImg?.keep) setImg({keep: true, url: URL.createObjectURL(b), own: true});
+  }).catch(() => {});
+  $('#img').value = ''; $('#saveBtn').disabled = false;
+  $('#editOv').classList.add('show'); $('#form').scrollTop = 0;
+  setTimeout(() => $('#f-name').focus(), 50);
+}
+function closeEdit(){ $('#editOv').classList.remove('show'); setImg(null); editing = null; }
+async function handleFile(f){
+  if (!f || !/^image\//.test(f.type)) { toast('画像ファイルを選んでください'); return; }
+  try { const {blob, thumb} = await processImage(f); setImg({blob, thumb, url: URL.createObjectURL(blob), own: true}); }
+  catch { toast('画像を読み込めませんでした。JPEGかPNGの画像を選んでください'); }
+}
+function cleanCard(c, keepTimes){
+  const now = Date.now();
+  return {
+    id: c.id,
+    name: str(c.name, 200), company: str(c.company, 200), tel: str(c.tel, 100), email: str(c.email, 254),
+    address: str(c.address, 500), memo: str(c.memo, 5000),
+    sns: (Array.isArray(c.sns) ? c.sns : []).filter(s => s && typeof s === 'object')
+      .map(s => ({type: SNS.includes(s.type) ? s.type : 'その他', value: str(s.value, 300)})).filter(s => s.value).slice(0, 20),
+    importance: [1, 2, 3].includes(Number(c.importance)) ? Number(c.importance) : 1,
+    color: normColor(c.color),
+    thumb: isThumb(c.thumb) ? c.thumb : null, hasImage: !!c.hasImage,
+    created: num(c.created) || now,
+    updated: keepTimes ? (num(c.updated) || num(c.created) || now) : now
+  };
+}
+$('#form').onsubmit = async e => {
+  e.preventDefault();
+  if (state !== 'ready') return;
+  const name = $('#f-name').value.trim();
+  if (!name) { toast('なまえを入れてください'); $('#f-name').focus(); return; }
+  const btn = $('#saveBtn'); btn.disabled = true;
+  const wasEditing = !!editing;
+  try {
+    const id = editing?.id || newId();
+    let image, thumb = editing?.thumb || null, hasImage = !!editing?.hasImage;
+    if (formImg?.blob) { image = {type: formImg.blob.type || 'image/jpeg', data: await formImg.blob.arrayBuffer()}; thumb = formImg.thumb; hasImage = true; }
+    else if (!formImg) { image = hasImage ? null : undefined; thumb = null; hasImage = false; }
+    const card = cleanCard({
+      id, name, company: $('#f-company').value, tel: $('#f-tel').value, email: $('#f-mail').value,
+      address: $('#f-addr').value, memo: $('#f-memo').value,
+      sns: [...document.querySelectorAll('#snsList .sns-row')].map(r => ({type: r.querySelector('select').value, value: r.querySelector('input').value})),
+      importance: formImp, color: formColor, thumb, hasImage, created: editing?.created
+    });
+    await dbPut(card, image);
+    askPersist();
+    closeEdit();
+    toast(wasEditing ? '更新しました ✨' : '追加しました 🎉');
+    await afterWrite();
+  } catch (err) { toast(saveErrorMsg(err)); }
+  finally { btn.disabled = false; }
+};
+
+/* ---------- 詳細 ---------- */
+const SNS_BASE = {X:'https://x.com/', Instagram:'https://instagram.com/', TikTok:'https://www.tiktok.com/@', YouTube:'https://www.youtube.com/@'};
+function snsHref(s){
+  const v = s.value.trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  const base = SNS_BASE[s.type];
+  return base ? base + encodeURIComponent(v.replace(/^@/, '')) : null;
+}
+async function copyText(text, btn){
+  try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
+  catch {
+    const vl = btn.parentElement.querySelector('.vl'); const r = document.createRange(); r.selectNodeContents(vl);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('選択しました。長押しかCtrl+Cでコピーしてね');
+  }
+}
+function revokeDetail(){ if (detailUrl) { URL.revokeObjectURL(detailUrl); detailUrl = null; } }
+function closeDetail(){ $('#detailOv').classList.remove('show'); detailToken++; revokeDetail(); }
+function openDetail(c){
+  const info = (ic, lb, vl, copy) => vl ? `<div class="info"><span class="ic" aria-hidden="true">${ic}</span><div><div class="lb">${lb}</div><div class="vl">${vl}</div></div>${copy ? `<button type="button" class="copy" data-copy="${esc(copy)}">コピー</button>` : ''}</div>` : '';
+  const sns = (c.sns || []).filter(s => s.value).map(s => { const h = snsHref(s); return `${esc(s.type)}：${h ? `<a href="${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(s.value)}</a>` : esc(s.value)}`; }).join('<br>');
+  const tel = c.tel && c.tel.replace(/[^\d+]/g, '');
+  revokeDetail();
+  const token = ++detailToken;
+  $('#detail').innerHTML = `
+    <button type="button" class="close-x" data-close aria-label="閉じる">✕</button>
+    <div class="detail-head">
+      <div class="avatar" style="--accent:${colorVar(c.color)}">${isThumb(c.thumb) ? `<img src="${esc(c.thumb)}" alt="">` : esc(first(c.name))}</div>
+      <div><h2 style="margin:0">${esc(c.name)}</h2>
+        ${c.company ? `<div class="sub">🏢 ${esc(c.company)}</div>` : ''}
+        <div>${hearts(c.importance || 1)} <small class="sub">${esc(IMP_LABEL[c.importance] || '')}</small></div></div>
+    </div>
+    ${c.hasImage ? `<img class="detail-img" alt="名刺の画像（タップで拡大）" data-zoom${isThumb(c.thumb) ? ` src="${esc(c.thumb)}"` : ''}>` : ''}
+    <div class="info-list">
+      ${info('📞', '電話番号', c.tel && (tel ? `<a href="tel:${esc(tel)}">${esc(c.tel)}</a>` : esc(c.tel)), c.tel)}
+      ${info('✉️', 'メール', c.email && (isMail(c.email) ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : esc(c.email)), c.email)}
+      ${info('🏠', '住所', c.address && `<a href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener noreferrer">${esc(c.address)}</a>`, c.address)}
+      ${info('💬', 'SNS', sns)}
+      ${info('📝', 'メモ', c.memo && `<span class="memo">${esc(c.memo)}</span>`)}
+    </div>
+    <p class="stamp">追加 ${fmtDate(c.created)}${c.updated && fmtDate(c.updated) !== fmtDate(c.created) ? `・更新 ${fmtDate(c.updated)}` : ''}</p>
+    <div class="actions">
+      <button type="button" class="btn btn-danger" data-del>🗑 さくじょ</button>
+      <button type="button" class="btn btn-main" data-edit>✏️ へんしゅう</button>
+    </div>`;
+  const d = $('#detail');
+  d.querySelector('[data-close]').onclick = closeDetail;
+  d.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copyText(b.dataset.copy, b));
+  const z = d.querySelector('[data-zoom]');
+  if (z) {
+    z.onclick = () => { if (!z.getAttribute('src')) return; $('#zoom img').src = z.src; $('#zoom').classList.add('show'); };
+    dbImage(c.id).then(b => {
+      if (!b || token !== detailToken) return;
+      detailUrl = URL.createObjectURL(b); z.src = detailUrl;
+    }).catch(() => {});
+  }
+  d.querySelector('[data-edit]').onclick = () => { closeDetail(); openForm(c); };
+  const delBtn = d.querySelector('[data-del]');
+  delBtn.onclick = async () => {
+    if (!delBtn.classList.contains('armed')) {
+      delBtn.classList.add('armed'); delBtn.textContent = 'もう一度押すと削除します';
+      clearTimeout(delBtn._t); delBtn._t = setTimeout(() => { delBtn.classList.remove('armed'); delBtn.textContent = '🗑 さくじょ'; }, 4000);
+      return;
+    }
+    delBtn.disabled = true;
+    try { await dbDelete(c.id); }
+    catch { toast('削除できませんでした。もう一度ためしてください'); delBtn.disabled = false; return; }
+    closeDetail(); toast('削除しました');
+    await afterWrite();
+  };
+  $('#detailOv').classList.add('show'); d.scrollTop = 0;
+}
+
+/* ---------- バックアップ ---------- */
+function download(file){
+  const a = document.createElement('a'), url = URL.createObjectURL(file);
+  a.href = url; a.download = file.name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function exportBackup(){
+  if (state !== 'ready') return;
+  if (!cards.length) { toast('保存する名刺がまだありません'); return; }
+  const btns = [$('#exportBtn'), $('#nudgeSave')]; btns.forEach(b => b.disabled = true);
+  try {
+    const out = [];
+    for (const c of cards) {
+      let image = null;
+      if (c.hasImage) { try { const b = await dbImage(c.id); if (b) image = await blobToDataURL(b); } catch {} }
+      const {thumb, hasImage, ...rest} = c;
+      out.push({...rest, image});
+    }
+    const file = new File([JSON.stringify({app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), cards: out})],
+      `meishibako-backup-${ymd()}.json`, {type: 'application/json'});
+    let shared = false;
+    if (isMobile && navigator.canShare?.({files: [file]})) {
+      try { await navigator.share({files: [file], title: 'めいしばこのバックアップ'}); shared = true; }
+      catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    if (!shared) download(file);
+    await setMeta({lastBackup: Date.now(), dirtySince: null, snoozeUntil: 0});
+    toast(`${cards.length}枚をバックアップしました 📦`);
+  } catch { toast('バックアップを作れませんでした。もう一度ためしてください'); }
+  finally { btns.forEach(b => b.disabled = false); renderBanners(); }
+}
+// 同じidの名刺は「更新日時があたらしい方」を残す。前のめいしばこ（Claude版）のバックアップもそのまま読める
+async function importCards(list){
+  const known = new Map(cards.map(c => [c.id, c]));
+  const r = {added: 0, updated: 0, skipped: 0, failedImg: 0};
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object' || !str(raw.name, 200)) continue;
+    const id = safeId(String(raw.id ?? ''));
+    const prev = known.get(id);
+    if (prev && num(prev.updated) >= (num(raw.updated) || num(raw.created))) { r.skipped++; continue; }
+    let image, thumb = null, hasImage = false;
+    if (typeof raw.image === 'string' && raw.image.startsWith('data:image/')) {
+      try {
+        const p = await processImage(dataURLtoBlob(raw.image));
+        image = {type: p.blob.type || 'image/jpeg', data: await p.blob.arrayBuffer()}; thumb = p.thumb; hasImage = true;
+      } catch { r.failedImg++; }
+    }
+    if (!hasImage && prev?.hasImage) { thumb = prev.thumb; hasImage = true; image = undefined; }
+    const card = cleanCard({...raw, id, thumb, hasImage}, true);
+    await dbPut(card, image);
+    known.set(id, card);
+    prev ? r.updated++ : r.added++;
+  }
+  return r;
+}
+
+/* ---------- イベント ---------- */
+$('#addBtn').onclick = () => openForm();
+$('#cancelBtn').onclick = closeEdit;
+$('#addSns').onclick = () => snsRow();
+$('#impPick').onclick = e => { const b = e.target.closest('button'); if (b) setImp(+b.dataset.v); };
+$('#colorPick').innerHTML = COLORS.map((c, i) => `<button type="button" data-c="${c}" style="background:var(--${c})" aria-label="カードの色 ${i + 1}"></button>`).join('');
+$('#colorPick').onclick = e => { const b = e.target.closest('button'); if (b) setColor(b.dataset.c); };
+$('#img').onchange = e => handleFile(e.target.files[0]);
+$('#rmImg').onclick = () => setImg(null);
+const drop = $('#drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+
+$('#grid').onclick = e => { const b = e.target.closest('button.card'); if (b) { const c = cards.find(x => x.id === b.dataset.id); if (c) openDetail(c); } };
+$('#q').oninput = render; $('#sort').onchange = render;
+document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
+  filterImp = +ch.dataset.imp; document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === ch)); render();
+});
+$('#editOv').addEventListener('mousedown', e => { if (e.target === e.currentTarget) closeEdit(); });
+$('#detailOv').addEventListener('mousedown', e => { if (e.target === e.currentTarget) closeDetail(); });
+$('#zoom').onclick = () => $('#zoom').classList.remove('show');
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if ($('#zoom').classList.contains('show')) $('#zoom').classList.remove('show');
+  else if ($('#editOv').classList.contains('show')) closeEdit();
+  else if ($('#detailOv').classList.contains('show')) closeDetail();
+});
+
+$('#exportBtn').onclick = exportBackup;
+$('#nudgeSave').onclick = exportBackup;
+$('#nudgeLater').onclick = async () => { try { await setMeta({snoozeUntil: Date.now() + SNOOZE}); } catch {} renderBanners(); };
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f || state !== 'ready') return;
+  let list;
+  try { const data = JSON.parse(await f.text()); list = Array.isArray(data) ? data : data?.cards; if (!Array.isArray(list)) throw 0; }
+  catch { toast('読み込めませんでした。めいしばこのバックアップファイル（.json）を選んでください'); return; }
+  toast('読み込んでいます…');
+  try {
+    const r = await importCards(list);
+    askPersist();
+    toast(`${r.added}枚を追加・${r.updated}枚を更新しました 📂`
+      + (r.skipped ? `（${r.skipped}枚はこの端末の方があたらしいので、そのままにしました）` : '')
+      + (r.failedImg ? `（画像${r.failedImg}枚は読み込めませんでした）` : ''));
+  } catch (err) { toast(saveErrorMsg(err)); }
+  await afterWrite();
+};
+$('#iosTipClose').onclick = () => { ls.set('meishibako:iosTipClosed', '1'); renderBanners(); };
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderBanners(); });
+addEventListener('appinstalled', () => { installEvt = null; renderBanners(); });
+$('#installBtn').onclick = async () => {
+  if (!installEvt) return;
+  const ev = installEvt; installEvt = null;
+  try { await ev.prompt(); await ev.userChoice; } catch {}
+  renderBanners();
+};
+
+/* ---------- 起動 ---------- */
+setImg(null);
+render();
+(async () => {
+  try {
+    if (!('indexedDB' in window)) throw new Error('no indexedDB');
+    idb = await openDB();
+    idb.onversionchange = () => { idb.close(); idb = null; state = 'stale'; render(); };
+    await reload();
+  } catch { state = 'error'; render(); }
+})();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+  addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
+})();
+</script>
+</body>
+</html>
