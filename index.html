@@ -113,7 +113,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 .avatar{flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:700;background:var(--accent,var(--c0));color:var(--text);overflow:hidden;box-shadow:0 0 0 3px var(--accent,var(--c0))}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .card-name{display:block;font-size:18px;font-weight:700;margin:0;word-break:break-all}
-.card-community,.card-company{display:block;font-size:13px;color:var(--text-sub);margin:0;word-break:break-all}
+.card-community,.card-company,.card-role{display:block;font-size:13px;color:var(--text-sub);margin:0;word-break:break-all}
 .hearts{position:absolute;top:14px;right:14px;font-size:14px;letter-spacing:1px}
 .card-info{margin-top:10px;font-size:13px;color:var(--text-sub);display:grid;gap:2px}
 .card-info span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -140,7 +140,10 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 .field input,.field textarea,.field select{width:100%;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:var(--field);outline:none;font-size:16px}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--pink);background:var(--surface)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.row-postal{display:grid;grid-template-columns:minmax(8.5em,1fr) 3fr;gap:12px}
+.half{max-width:calc(50% - 6px)}
+.field input[type="date"]{min-height:46px}
+@media (max-width:520px){.row2,.row-postal{grid-template-columns:1fr}.half{max-width:none}}
 .sns-row{display:flex;gap:6px;margin-bottom:6px}
 .sns-row select{width:120px;flex:none}
 .sns-row input{min-width:0}
@@ -212,6 +215,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
     <option value="old">ふるい順</option>
     <option value="name">なまえ順</option>
     <option value="imp">重要度順</option>
+    <option value="met">交換日が新しい順</option>
   </select>
 </div>
 
@@ -258,14 +262,26 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
       </label>
       <button type="button" class="add-link" id="rmImg" hidden>✕ 画像をはずす</button>
     </div>
+    <!-- 入力欄の順番：なまえ → コミュニティ → 会社名 → 部署 → 役職 → 郵便番号 → 住所 → 電話番号 → 携帯電話番号 → FAX → メールアドレス → SNS → 重要度 → 名刺交換日 → メモ（→ カードの色） -->
     <div class="field"><label for="f-name">なまえ<span class="req">ひっす</span></label><input id="f-name" required placeholder="山田 花子" maxlength="200"></div>
     <div class="field"><label for="f-community">コミュニティ</label><input id="f-community" placeholder="〇〇勉強会、ゼミ、サークル など" maxlength="200"></div>
     <div class="field"><label for="f-company">会社名</label><input id="f-company" placeholder="株式会社もふもふ" maxlength="200"></div>
     <div class="row2">
-      <div class="field"><label for="f-tel">電話番号</label><input id="f-tel" type="tel" placeholder="090-1234-5678" maxlength="100"></div>
+      <div class="field"><label for="f-dept">部署</label><input id="f-dept" placeholder="営業部" maxlength="200"></div>
+      <div class="field"><label for="f-title">役職</label><input id="f-title" placeholder="課長" maxlength="200"></div>
+    </div>
+    <div class="row-postal">
+      <div class="field"><label for="f-postal">郵便番号</label><input id="f-postal" inputmode="numeric" placeholder="100-0005" maxlength="20"></div>
+      <div class="field"><label for="f-addr">住所</label><input id="f-addr" placeholder="東京都千代田区丸の内1-1" maxlength="500"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="f-tel">電話番号</label><input id="f-tel" type="tel" placeholder="03-1234-5678" maxlength="100"></div>
+      <div class="field"><label for="f-mobile">携帯電話番号</label><input id="f-mobile" type="tel" placeholder="090-1234-5678" maxlength="100"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="f-fax">FAX</label><input id="f-fax" type="tel" placeholder="03-1234-5679" maxlength="100"></div>
       <div class="field"><label for="f-mail">メールアドレス</label><input id="f-mail" type="email" placeholder="hanako@example.com" maxlength="254"></div>
     </div>
-    <div class="field"><label for="f-addr">住所</label><input id="f-addr" placeholder="東京都〇〇区…" maxlength="500"></div>
     <div class="field">
       <span class="lbl">SNS（あれば）</span>
       <div id="snsList"></div>
@@ -280,11 +296,12 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
         <button type="button" data-v="4">⭐️<br>おみせ</button>
       </div>
     </div>
+    <div class="field half"><label for="f-met">名刺交換日</label><input id="f-met" type="date"></div>
+    <div class="field"><label for="f-memo">メモ</label><textarea id="f-memo" rows="3" placeholder="どこで会ったか、など" maxlength="5000"></textarea></div>
     <div class="field">
       <span class="lbl">カードの色</span>
       <div class="colors" id="colorPick"></div>
     </div>
-    <div class="field"><label for="f-memo">メモ</label><textarea id="f-memo" rows="3" placeholder="どこで会ったか、など" maxlength="5000"></textarea></div>
     <div class="actions">
       <button type="button" class="btn btn-sub" id="cancelBtn">やめる</button>
       <button type="submit" class="btn btn-main" id="saveBtn">💾 ほぞん</button>
@@ -309,7 +326,7 @@ const SNS = ['X','Instagram','Facebook','LINE','LinkedIn','TikTok','YouTube','�
 const SHOP = 4;                                    // 重要度「⭐️ おみせ」
 const IMP_LABEL = {1:'ふつう', 2:'だいじ', 3:'とってもだいじ', [SHOP]:'おみせ'};
 const IMP_RANK = {3:3, 2:2, 1:1, [SHOP]:0};        // 重要度順では「おみせ」をいちばん後ろに
-const SAMPLE = {name:'もふ田 うさこ', community:'もふもふ読書会', company:'株式会社にんじん堂', tel:'03-0000-0000', email:'usako@example.com', importance:2, color:'c1'};
+const SAMPLE = {name:'もふ田 うさこ', community:'もふもふ読書会', company:'株式会社にんじん堂', department:'広報部', title:'係長', tel:'03-0000-0000', email:'usako@example.com', importance:2, color:'c1'};
 const DAY = 864e5, NUDGE_AFTER = 7 * DAY, SNOOZE = 3 * DAY;
 const IMG_MAX = 1600, THUMB_MAX = 200;
 const BACKUP_APP = 'meishibako', BACKUP_VERSION = 1;
@@ -325,7 +342,20 @@ const num = v => (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0;
 const isThumb = s => typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(s);
 const isMail = s => /^[^\s@<>"']+@[^\s@<>"']+$/.test(s);
 // このアプリが知っている項目。知らない項目（将来の版で増える項目など）は、保存し直しても消さずに残す
-const KNOWN_KEYS = new Set(['id','name','community','company','tel','email','address','memo','sns','importance','color','thumb','hasImage','created','updated','image']);
+const KNOWN_KEYS = new Set(['id','name','community','company','department','title','postal','address','tel','mobile','fax','email','sns','importance','exchangedOn','memo','color','thumb','hasImage','created','updated','image']);
+// 郵便番号：全角数字・全角ハイフンを半角に。7けたの数字だけなら「123-4567」の形にする
+const normPostal = v => {
+  const s = str(v, 20).replace(/^〒\s*/, '').replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).replace(/[ー－‐−―]/g, '-');
+  return /^\d{7}$/.test(s) ? `${s.slice(0, 3)}-${s.slice(3)}` : s;
+};
+// 名刺交換日：「YYYY-MM-DD」の形でだけ持つ（2026/10/21 なども読み替える）。ありえない日付は空にする
+const normDay = v => {
+  const m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(str(v, 20));
+  if (!m) return '';
+  const y = +m[1], mo = +m[2], d = +m[3], t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d ? `${m[1]}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+};
+const fmtDay = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? `${+m[1]}/${+m[2]}/${+m[3]}` : ''; };
 function extras(c){
   const out = {};
   for (const [k, v] of Object.entries(c && typeof c === 'object' ? c : {})) {
@@ -444,26 +474,31 @@ function cardHTML(c, sample){
           <span class="card-name">${esc(c.name)}</span>
           ${c.community ? `<span class="card-community">👥 ${esc(c.community)}</span>` : ''}
           ${c.company ? `<span class="card-company">🏢 ${esc(c.company)}</span>` : ''}
+          ${c.department || c.title ? `<span class="card-role">💼 ${esc([c.department, c.title].filter(Boolean).join('・'))}</span>` : ''}
         </span>
       </span>
       <span class="card-info">
         ${c.tel ? `<span>📞 ${esc(c.tel)}</span>` : ''}
+        ${c.mobile ? `<span>📱 ${esc(c.mobile)}</span>` : ''}
         ${c.email ? `<span>✉️ ${esc(c.email)}</span>` : ''}
+        ${c.exchangedOn ? `<span>📅 ${esc(fmtDay(c.exchangedOn))}</span>` : ''}
       </span>
       ${sample ? '<span class="sample-tag">見本</span>' : ''}
     </${tag}>`;
 }
 function sorted(list){
   const sort = $('#sort').value, rank = c => IMP_RANK[c.importance] ?? 1;
+  const cmp = (x, y) => x < y ? -1 : x > y ? 1 : 0;
   return list.slice().sort((a, b) => sort === 'old' ? a.created - b.created
     : sort === 'name' ? a.name.localeCompare(b.name, 'ja')
     : sort === 'imp' ? (rank(b) - rank(a)) || (b.created - a.created)
+    : sort === 'met' ? cmp(b.exchangedOn || '', a.exchangedOn || '') || (b.created - a.created)   // 交換日のない名刺は後ろに
     : b.created - a.created);
 }
 function render(){
   const q = $('#q').value.trim().toLowerCase();
   const list = sorted(cards.filter(c => (!filterImp || c.importance === filterImp) &&
-    (!q || [c.name, c.community, c.company, c.email, c.tel, c.address, c.memo, ...(c.sns || []).map(s => s.value)].join(' ').toLowerCase().includes(q))));
+    (!q || [c.name, c.community, c.company, c.department, c.title, c.postal, c.address, c.tel, c.mobile, c.fax, c.email, c.exchangedOn, c.memo, ...(c.sns || []).map(s => s.value)].join(' ').toLowerCase().includes(q))));
   const ready = state === 'ready';
   const showSample = !ready || !cards.length;
   $('#grid').innerHTML = showSample ? cardHTML(SAMPLE, true) : list.map(c => cardHTML(c)).join('');
@@ -554,9 +589,12 @@ function openForm(card){
   if (state !== 'ready') return;
   editing = card || null;
   $('#formTitle').textContent = card ? '✏️ 名刺をへんしゅう' : '🌸 名刺をついか';
-  $('#f-name').value = card?.name || ''; $('#f-community').value = card?.community || ''; $('#f-company').value = card?.company || '';
-  $('#f-tel').value = card?.tel || ''; $('#f-mail').value = card?.email || '';
-  $('#f-addr').value = card?.address || ''; $('#f-memo').value = card?.memo || '';
+  const put = (sel, v) => { $(sel).value = v || ''; };
+  put('#f-name', card?.name); put('#f-community', card?.community); put('#f-company', card?.company);
+  put('#f-dept', card?.department); put('#f-title', card?.title); put('#f-postal', card?.postal); put('#f-addr', card?.address);
+  put('#f-tel', card?.tel); put('#f-mobile', card?.mobile); put('#f-fax', card?.fax); put('#f-mail', card?.email);
+  put('#f-met', card ? card.exchangedOn : ymd());   // 新しく追加するときは今日の日付を入れておく
+  put('#f-memo', card?.memo);
   $('#snsList').innerHTML = ''; (card?.sns || []).forEach(s => snsRow(s.type, s.value));
   setImp(card?.importance || 1);
   setColor(card ? normColor(card.color) : COLORS[Math.floor(Math.random() * COLORS.length)]);
@@ -566,7 +604,9 @@ function openForm(card){
   }).catch(() => {});
   $('#img').value = ''; $('#saveBtn').disabled = false;
   $('#editOv').classList.add('show'); $('#form').scrollTop = 0;
-  setTimeout(() => $('#f-name').focus(), 50);
+  // PCではすぐ「なまえ」にカーソルを置く（遅らせると、先に打ち始めた文字が別の欄に入ることがある）。
+  // スマホでは置かない：先に名刺を撮れるよう、キーボードを勝手に出さない
+  if (!isMobile) $('#f-name').focus();
 }
 function closeEdit(){ $('#editOv').classList.remove('show'); setImg(null); editing = null; }
 async function handleFile(f){
@@ -574,21 +614,33 @@ async function handleFile(f){
   try { const {blob, thumb} = await processImage(f); setImg({blob, thumb, url: URL.createObjectURL(blob), own: true}); }
   catch { toast('画像を読み込めませんでした。JPEGかPNGの画像を選んでください'); }
 }
-// 追加した項目（community など）は必須にせず、無ければ空にする。知らない項目は extras() で残す
+// 保存する名刺データ。項目は入力欄と同じ順にそろえる。
+// あとから増やした項目（community・部署など）は必須にせず、無ければ空にする。知らない項目は extras() で最後に残す
 function cleanCard(c, keepTimes){
   const now = Date.now();
   return {
-    ...extras(c),
     id: c.id,
-    name: str(c.name, 200), community: str(c.community, 200), company: str(c.company, 200), tel: str(c.tel, 100), email: str(c.email, 254),
-    address: str(c.address, 500), memo: str(c.memo, 5000),
+    name: str(c.name, 200),
+    community: str(c.community, 200),
+    company: str(c.company, 200),
+    department: str(c.department, 200),
+    title: str(c.title, 200),
+    postal: normPostal(c.postal),
+    address: str(c.address, 500),
+    tel: str(c.tel, 100),
+    mobile: str(c.mobile, 100),
+    fax: str(c.fax, 100),
+    email: str(c.email, 254),
     sns: (Array.isArray(c.sns) ? c.sns : []).filter(s => s && typeof s === 'object')
       .map(s => ({type: SNS.includes(s.type) ? s.type : 'その他', value: str(s.value, 300)})).filter(s => s.value).slice(0, 20),
     importance: [1, 2, 3, SHOP].includes(Number(c.importance)) ? Number(c.importance) : 1,
+    exchangedOn: normDay(c.exchangedOn),
+    memo: str(c.memo, 5000),
     color: normColor(c.color),
     thumb: isThumb(c.thumb) ? c.thumb : null, hasImage: !!c.hasImage,
     created: num(c.created) || now,
-    updated: keepTimes ? (num(c.updated) || num(c.created) || now) : now
+    updated: keepTimes ? (num(c.updated) || num(c.created) || now) : now,
+    ...extras(c)
   };
 }
 $('#form').onsubmit = async e => {
@@ -605,10 +657,13 @@ $('#form').onsubmit = async e => {
     else if (!formImg) { image = hasImage ? null : undefined; thumb = null; hasImage = false; }
     const card = cleanCard({
       ...(editing || {}),
-      id, name, community: $('#f-community').value, company: $('#f-company').value, tel: $('#f-tel').value, email: $('#f-mail').value,
-      address: $('#f-addr').value, memo: $('#f-memo').value,
+      id, name,
+      community: $('#f-community').value, company: $('#f-company').value, department: $('#f-dept').value, title: $('#f-title').value,
+      postal: $('#f-postal').value, address: $('#f-addr').value,
+      tel: $('#f-tel').value, mobile: $('#f-mobile').value, fax: $('#f-fax').value, email: $('#f-mail').value,
       sns: [...document.querySelectorAll('#snsList .sns-row')].map(r => ({type: r.querySelector('select').value, value: r.querySelector('input').value})),
-      importance: formImp, color: formColor, thumb, hasImage, created: editing?.created
+      importance: formImp, exchangedOn: $('#f-met').value, memo: $('#f-memo').value,
+      color: formColor, thumb, hasImage, created: editing?.created
     });
     await dbPut(card, image);
     askPersist();
@@ -639,7 +694,9 @@ function closeDetail(){ $('#detailOv').classList.remove('show'); detailToken++; 
 function openDetail(c){
   const info = (ic, lb, vl, copy) => vl ? `<div class="info"><span class="ic" aria-hidden="true">${ic}</span><div><div class="lb">${lb}</div><div class="vl">${vl}</div></div>${copy ? `<button type="button" class="copy" data-copy="${esc(copy)}">コピー</button>` : ''}</div>` : '';
   const sns = (c.sns || []).filter(s => s.value).map(s => { const h = snsHref(s); return `${esc(s.type)}：${h ? `<a href="${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(s.value)}</a>` : esc(s.value)}`; }).join('<br>');
-  const tel = c.tel && c.tel.replace(/[^\d+]/g, '');
+  const telLink = v => { const t = v.replace(/[^\d+]/g, ''); return t ? `<a href="tel:${esc(t)}">${esc(v)}</a>` : esc(v); };
+  const addr = [c.postal ? `〒${c.postal}` : '', c.address].filter(Boolean).join(' ');
+  const role = [c.department, c.title].filter(Boolean).join('・');
   revokeDetail();
   const token = ++detailToken;
   $('#detail').innerHTML = `
@@ -649,14 +706,18 @@ function openDetail(c){
       <div><h2 style="margin:0">${esc(c.name)}</h2>
         ${c.community ? `<div class="sub">👥 ${esc(c.community)}</div>` : ''}
         ${c.company ? `<div class="sub">🏢 ${esc(c.company)}</div>` : ''}
+        ${role ? `<div class="sub">💼 ${esc(role)}</div>` : ''}
         <div>${impMark(c.importance)} <small class="sub">${esc(IMP_LABEL[c.importance] || '')}</small></div></div>
     </div>
     ${c.hasImage ? `<img class="detail-img" alt="名刺の画像（タップで拡大）" data-zoom${isThumb(c.thumb) ? ` src="${esc(c.thumb)}"` : ''}>` : ''}
     <div class="info-list">
-      ${info('📞', '電話番号', c.tel && (tel ? `<a href="tel:${esc(tel)}">${esc(c.tel)}</a>` : esc(c.tel)), c.tel)}
+      ${info('🏠', '住所', addr && (c.address ? `<a href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(addr)}" target="_blank" rel="noopener noreferrer">${esc(addr)}</a>` : esc(addr)), addr)}
+      ${info('📞', '電話番号', c.tel && telLink(c.tel), c.tel)}
+      ${info('📱', '携帯電話番号', c.mobile && telLink(c.mobile), c.mobile)}
+      ${info('📠', 'FAX', c.fax && esc(c.fax), c.fax)}
       ${info('✉️', 'メール', c.email && (isMail(c.email) ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : esc(c.email)), c.email)}
-      ${info('🏠', '住所', c.address && `<a href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener noreferrer">${esc(c.address)}</a>`, c.address)}
       ${info('💬', 'SNS', sns)}
+      ${info('📅', '名刺交換日', c.exchangedOn && esc(fmtDay(c.exchangedOn)))}
       ${info('📝', 'メモ', c.memo && `<span class="memo">${esc(c.memo)}</span>`)}
     </div>
     <p class="stamp">追加 ${fmtDate(c.created)}${c.updated && fmtDate(c.updated) !== fmtDate(c.created) ? `・更新 ${fmtDate(c.updated)}` : ''}</p>
@@ -757,21 +818,28 @@ async function importCards(list){
    .xlsx は「XMLファイルをZIPにまとめたもの」なので、外部ライブラリを使わずにここで組み立てる。
    文字はすべて文字列セルとして書くので、= で始まる内容が数式として動くこともない */
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+// 列は入力欄と同じ順。最後に追加日・更新日
 const XLSX_COLS = [
   ['なまえ', 18, c => c.name],
   ['コミュニティ', 20, c => c.community],
   ['会社名', 24, c => c.company],
-  ['電話番号', 16, c => c.tel],
-  ['メールアドレス', 28, c => c.email],
+  ['部署', 16, c => c.department],
+  ['役職', 14, c => c.title],
+  ['郵便番号', 11, c => c.postal],
   ['住所', 32, c => c.address],
+  ['電話番号', 16, c => c.tel],
+  ['携帯電話番号', 16, c => c.mobile],
+  ['FAX', 16, c => c.fax],
+  ['メールアドレス', 28, c => c.email],
   ['SNS', 30, c => (c.sns || []).map(s => `${s.type}: ${s.value}`).join('\n'), 'wrap'],
   ['重要度', 14, c => IMP_LABEL[c.importance] || ''],
+  ['名刺交換日', 12, c => c.exchangedOn, 'day'],
   ['メモ', 40, c => c.memo, 'wrap'],
   ['追加日', 12, c => c.created, 'date'],
   ['更新日', 12, c => c.updated, 'date']
 ];
 const xmlEsc = s => String(s ?? '')
-  .replace(/[^\u0009\u000A\u000D -퟿-�\u{10000}-\u{10FFFF}]/gu, '')   // XMLに入れられない文字は落とす
+  .replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, '')   // XMLに入れられない文字は落とす
   .replace(/_(x[0-9A-Fa-f]{4})_/g, '_x005F_$1_')                                          // Excelの _xHHHH_ 表記として読まれないように
   .replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const colName = i => { let s = ''; for (let n = i + 1; n; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s; return s; };
@@ -780,6 +848,7 @@ function sheetXml(rows){
   const last = colName(XLSX_COLS.length - 1), n = rows.length + 1;
   const cell = (ref, v, kind) => {
     if (kind === 'date') return num(v) ? `<c r="${ref}" s="2"><v>${excelDate(v)}</v></c>` : '';
+    if (kind === 'day') { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? `<c r="${ref}" s="2"><v>${Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY + 25569}</v></c>` : ''; }
     const s = String(v ?? '');
     return s ? `<c r="${ref}" t="inlineStr"${kind === 'wrap' ? ' s="3"' : ''}><is><t xml:space="preserve">${xmlEsc(s)}</t></is></c>` : '';
   };
