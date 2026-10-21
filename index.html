@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.google.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://*.firebaseapp.com https://*.web.app https://accounts.google.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>めいしばこ</title>
 <meta name="description" content="名刺をかわいく整理できる名刺箱アプリ。名刺はあなたの端末の中だけに保存されます。">
@@ -178,6 +178,30 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 .memo{white-space:pre-wrap}
 .stamp{font-size:12px;color:var(--text-sub);margin:12px 0 0;text-align:right}
 
+/* グループ機能 */
+button.role{border:none;font-family:inherit;max-width:min(60vw,320px);overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+button.role:disabled{opacity:1;cursor:default}
+.modal.small{max-width:440px}
+.modal h3{font-size:14px;margin:18px 0 6px}
+.note-l{font-size:13px;color:var(--text-sub);margin:6px 0 12px}
+.wide{width:100%}
+.or{display:flex;align-items:center;gap:10px;color:var(--text-sub);font-size:12px;margin:16px 0 12px}
+.or::before,.or::after{content:"";flex:1;border-top:1.5px dashed var(--line)}
+.box-list{display:grid;gap:8px;margin-bottom:14px}
+.box-item{text-align:left;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-weight:700;overflow-wrap:anywhere}
+.box-item.on{border-color:var(--pink);background:var(--pink-soft)}
+.inline-form{display:flex;gap:8px;margin:0 0 12px}
+.inline-form input,.invite input{flex:1;min-width:0;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:var(--field);font-size:16px;outline:none}
+.inline-form input:focus{border-color:var(--pink)}
+.invite{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.invite input{font-size:13px;padding:8px 12px}
+.members{list-style:none;padding:0;margin:0 0 8px;display:grid;gap:6px}
+.members li{display:flex;align-items:center;gap:8px;background:var(--field);border-radius:12px;padding:8px 12px;min-width:0}
+.members li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.members li .add-link{margin-left:auto;flex:none}
+.add-link.danger,.add-link.armed{color:var(--danger)}
+.danger-zone{margin-top:20px;border-top:2px dashed var(--line);padding-top:14px;display:flex;justify-content:flex-end}
+
 .zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:80;padding:16px;cursor:zoom-out}
 .zoom.show{display:flex}
 .zoom img{max-width:100%;max-height:100%;border-radius:12px}
@@ -199,7 +223,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 <header>
   <div class="wrap head-inner">
     <h1 class="logo"><span aria-hidden="true">🐰</span>めいしばこ</h1>
-    <span class="role">🔒 この端末だけに保存</span>
+    <button type="button" class="role" id="boxBtn" disabled>🔒 この端末だけに保存</button>
     <label class="search"><span aria-hidden="true">🔍</span><input id="q" type="search" placeholder="なまえ・コミュニティ・会社でさがす" aria-label="検索" enterkeyhint="search"></label>
   </div>
 </header>
@@ -245,7 +269,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
     <input type="file" id="importFile" accept=".json,application/json" hidden>
   </div>
   <p class="note" id="backupInfo"></p>
-  <p class="note">名刺はこの端末のブラウザの中だけに保存され、どこにも送信されません。ブラウザのデータを消したり機種変更したりすると消えてしまうので、ときどき「バックアップ保存」をしてください。別の端末には、バックアップファイルを読み込めば移せます。</p>
+  <p class="note" id="storageNote">名刺はこの端末のブラウザの中だけに保存され、どこにも送信されません。ブラウザのデータを消したり機種変更したりすると消えてしまうので、ときどき「バックアップ保存」をしてください。別の端末には、バックアップファイルを読み込めば移せます。</p>
 </footer>
 
 <button type="button" class="fab" id="addBtn" aria-label="名刺を追加" hidden>＋</button>
@@ -310,6 +334,35 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 </div>
 
 <div class="overlay" id="detailOv"><div class="modal" id="detail" role="dialog" aria-modal="true"></div></div>
+
+<!-- グループ機能（firebase-config.js に設定があるときだけ使う） -->
+<div class="overlay" id="boxOv"><div class="modal small" id="boxPanel" role="dialog" aria-modal="true"></div></div>
+<div class="overlay" id="authOv">
+  <form class="modal small" id="authForm" novalidate>
+    <button type="button" class="close-x" data-close aria-label="閉じる">✕</button>
+    <h2>🔑 ログイン</h2>
+    <p class="note-l" id="authMsg"></p>
+    <button type="button" class="btn btn-sub wide" id="googleBtn">Googleでログイン</button>
+    <div class="or">または メールアドレスで</div>
+    <div class="field"><label for="a-mail">メールアドレス</label><input id="a-mail" type="email" autocomplete="email" maxlength="254"></div>
+    <div class="field"><label for="a-pass">パスワード（6文字以上）</label><input id="a-pass" type="password" autocomplete="current-password" maxlength="100"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-sub" id="signupBtn">新しく登録</button>
+      <button type="submit" class="btn btn-main" id="loginBtn">ログイン</button>
+    </div>
+    <button type="button" class="add-link" id="resetBtn">パスワードを忘れたとき</button>
+  </form>
+</div>
+<div class="overlay" id="nameOv">
+  <form class="modal small" id="nameForm" novalidate>
+    <h2>🐰 グループで使う名前</h2>
+    <p class="note-l">グループのメンバーに表示される名前です。あとで変えられます。</p>
+    <div class="field"><label for="n-name">名前</label><input id="n-name" maxlength="40" placeholder="やまだ"></div>
+    <div class="actions"><button type="button" class="btn btn-sub" id="nameCancel" hidden>やめる</button><button type="submit" class="btn btn-main" id="nameSave">けってい</button></div>
+  </form>
+</div>
+<div class="overlay" id="groupOv"><div class="modal" id="groupPanel" role="dialog" aria-modal="true"></div></div>
+<div class="overlay" id="joinOv"><div class="modal small" id="joinPanel" role="dialog" aria-modal="true"></div></div>
 <div class="zoom" id="zoom"><img alt="名刺の画像"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -382,6 +435,7 @@ let state = 'loading';            // loading | ready | error | stale
 let cards = [], filterImp = 0, editing = null, formImg = null, formImp = 1, formColor = 'c0';
 let meta = {dirtySince: null, lastBackup: null, snoozeUntil: 0};
 let detailUrl = null, detailToken = 0, installEvt = null, persistAsked = false;
+let box = {kind: 'local'};        // 今開いている名刺箱：{kind:'local'} この端末 / {kind:'group', id, name} グループ
 const bc = 'BroadcastChannel' in window ? new BroadcastChannel('meishibako') : null;
 
 function toast(msg){
@@ -390,6 +444,7 @@ function toast(msg){
 }
 function saveErrorMsg(e){
   if (e?.name === 'QuotaExceededError') return '端末の保存容量がいっぱいです。いらない名刺を削除するか、画像をはずしてください';
+  if (box.kind === 'group' || typeof e?.code === 'string') return cloudErrorMsg(e);
   return '保存できませんでした。もう一度ためしてください';
 }
 
@@ -445,17 +500,33 @@ async function setMeta(patch){
   for (const [k, v] of Object.entries(patch)) s.put(v, k);
   await done(t);
 }
+// 「この端末」の名刺箱を読み直す（グループを開いているときは、グループ側の監視が画面を更新する）
 async function reload(){
+  if (box.kind !== 'local') return;
   try { cards = (await dbGetAll()).filter(c => c && c.name); await dbMeta(); state = 'ready'; }
   catch { state = 'error'; }
-  render();
+  if (box.kind === 'local') render();
 }
 async function afterWrite(){
+  if (box.kind !== 'local') return;
   if (!meta.dirtySince) { try { await setMeta({dirtySince: Date.now()}); } catch {} }
   bc?.postMessage('changed');
   await reload();
 }
-if (bc) bc.onmessage = () => { if (idb) reload(); };
+if (bc) bc.onmessage = () => { if (idb && box.kind === 'local') reload(); };
+// 今開いている名刺箱（この端末 or グループ）への保存・削除・画像の読み込み
+async function savePut(card, image, prev){
+  if (box.kind === 'local') return dbPut(card, image);
+  return groupPut(box.id, card, image, prev);
+}
+async function saveDelete(id){
+  if (box.kind === 'local') return dbDelete(id);
+  return groupDelete(box.id, id);
+}
+async function loadImage(card){
+  if (box.kind === 'local') return dbImage(card.id);
+  return groupImage(box.id, card);
+}
 function askPersist(){
   if (persistAsked || !navigator.storage?.persist) return;
   persistAsked = true;
@@ -504,12 +575,18 @@ function render(){
   $('#grid').innerHTML = showSample ? cardHTML(SAMPLE, true) : list.map(c => cardHTML(c)).join('');
   $('#count').textContent = ready && cards.length ? `${list.length} / ${cards.length} 枚` : '';
   $('#empty').hidden = !showSample && list.length > 0;
+  const inGroup = box.kind === 'group';
   $('#emptyMsg').innerHTML =
-      state === 'loading' ? '名刺を読み込んでいます…'
+      state === 'loading' ? (inGroup ? 'グループの名刺を読み込んでいます…' : '名刺を読み込んでいます…')
     : state === 'stale'   ? 'アプリが新しくなりました。ページを開き直してください。'
-    : state === 'error'   ? 'このブラウザでは名刺を保存できません。<br>プライベートブラウズを使っている場合は、ふつうのウィンドウで開いてください。'
-    : !cards.length       ? 'まだ名刺がありません。上は見本です。<br>右下の ＋ から1枚目を追加してね。<br><small>前の「めいしばこ」のバックアップがあれば、下の「📂 バックアップ読み込み」から移せます。</small>'
+    : state === 'error'   ? (inGroup ? 'グループの名刺を読み込めませんでした。<br>ネットにつながっているか確かめて、開き直してください。'
+                                     : 'このブラウザでは名刺を保存できません。<br>プライベートブラウズを使っている場合は、ふつうのウィンドウで開いてください。')
+    : !cards.length       ? (inGroup ? 'このグループにはまだ名刺がありません。上は見本です。<br>右下の ＋ から追加すると、メンバー全員に表示されます。'
+                                     : 'まだ名刺がありません。上は見本です。<br>右下の ＋ から1枚目を追加してね。<br><small>前の「めいしばこ」のバックアップがあれば、下の「📂 バックアップ読み込み」から移せます。</small>')
     : 'みつかりませんでした…';
+  $('#storageNote').textContent = inGroup
+    ? `「${box.name}」の名刺は、グループのメンバー全員が見たり編集したりできます。ネットにつながっていないときに追加・編集した分は、つながったときに自動で送られます。`
+    : '名刺はこの端末のブラウザの中だけに保存され、どこにも送信されません。ブラウザのデータを消したり機種変更したりすると消えてしまうので、ときどき「バックアップ保存」をしてください。別の端末には、バックアップファイルを読み込めば移せます。';
   $('#addBtn').hidden = !ready;
   $('#exportBtn').hidden = !ready;
   $('#importBtn').hidden = !ready;
@@ -517,7 +594,7 @@ function render(){
   renderBanners();
 }
 function renderBanners(){
-  const now = Date.now(), ready = state === 'ready';
+  const now = Date.now(), ready = state === 'ready' && box.kind === 'local';   // バックアップの記録は「この端末」の名刺箱だけ
   const nudge = ready && cards.length > 0 && meta.dirtySince && now - meta.dirtySince >= NUDGE_AFTER && now >= (meta.snoozeUntil || 0);
   $('#nudge').hidden = !nudge;
   if (nudge) $('#nudgeMsg').textContent = meta.lastBackup
@@ -599,7 +676,7 @@ function openForm(card){
   setImp(card?.importance || 1);
   setColor(card ? normColor(card.color) : COLORS[Math.floor(Math.random() * COLORS.length)]);
   setImg(card?.hasImage ? {keep: true, url: isThumb(card.thumb) ? card.thumb : ''} : null);
-  if (card?.hasImage) dbImage(card.id).then(b => {
+  if (card?.hasImage) loadImage(card).then(b => {
     if (b && editing === card && formImg?.keep) setImg({keep: true, url: URL.createObjectURL(b), own: true});
   }).catch(() => {});
   $('#img').value = ''; $('#saveBtn').disabled = false;
@@ -649,7 +726,7 @@ $('#form').onsubmit = async e => {
   const name = $('#f-name').value.trim();
   if (!name) { toast('なまえを入れてください'); $('#f-name').focus(); return; }
   const btn = $('#saveBtn'); btn.disabled = true;
-  const wasEditing = !!editing;
+  const wasEditing = !!editing, prev = editing;
   try {
     const id = editing?.id || newId();
     let image, thumb = editing?.thumb || null, hasImage = !!editing?.hasImage;
@@ -665,7 +742,7 @@ $('#form').onsubmit = async e => {
       importance: formImp, exchangedOn: $('#f-met').value, memo: $('#f-memo').value,
       color: formColor, thumb, hasImage, created: editing?.created
     });
-    await dbPut(card, image);
+    await savePut(card, image, prev);
     askPersist();
     closeEdit();
     toast(wasEditing ? '更新しました ✨' : '追加しました 🎉');
@@ -720,7 +797,7 @@ function openDetail(c){
       ${info('📅', '名刺交換日', c.exchangedOn && esc(fmtDay(c.exchangedOn)))}
       ${info('📝', 'メモ', c.memo && `<span class="memo">${esc(c.memo)}</span>`)}
     </div>
-    <p class="stamp">追加 ${fmtDate(c.created)}${c.updated && fmtDate(c.updated) !== fmtDate(c.created) ? `・更新 ${fmtDate(c.updated)}` : ''}</p>
+    <p class="stamp">追加 ${fmtDate(c.created)}${byWhom(c.createdBy, c.createdByName)}${c.updated && (fmtDate(c.updated) !== fmtDate(c.created) || (c.updatedBy && c.updatedBy !== c.createdBy)) ? `・更新 ${fmtDate(c.updated)}${byWhom(c.updatedBy, c.updatedByName)}` : ''}</p>
     <div class="actions">
       <button type="button" class="btn btn-danger" data-del>🗑 さくじょ</button>
       <button type="button" class="btn btn-main" data-edit>✏️ へんしゅう</button>
@@ -731,7 +808,7 @@ function openDetail(c){
   const z = d.querySelector('[data-zoom]');
   if (z) {
     z.onclick = () => { if (!z.getAttribute('src')) return; $('#zoom img').src = z.src; $('#zoom').classList.add('show'); };
-    dbImage(c.id).then(b => {
+    loadImage(c).then(b => {
       if (!b || token !== detailToken) return;
       detailUrl = URL.createObjectURL(b); z.src = detailUrl;
     }).catch(() => {});
@@ -745,8 +822,8 @@ function openDetail(c){
       return;
     }
     delBtn.disabled = true;
-    try { await dbDelete(c.id); }
-    catch { toast('削除できませんでした。もう一度ためしてください'); delBtn.disabled = false; return; }
+    try { await saveDelete(c.id); }
+    catch (err) { toast(box.kind === 'group' ? cloudErrorMsg(err) : '削除できませんでした。もう一度ためしてください'); delBtn.disabled = false; return; }
     closeDetail(); toast('削除しました');
     await afterWrite();
   };
@@ -777,14 +854,14 @@ async function exportBackup(){
     const out = [];
     for (const c of cards) {
       let image = null;
-      if (c.hasImage) { try { const b = await dbImage(c.id); if (b) image = await blobToDataURL(b); } catch {} }
+      if (c.hasImage) { try { const b = await loadImage(c); if (b) image = await blobToDataURL(b); } catch {} }
       const {thumb, hasImage, ...rest} = c;
       out.push({...rest, image});
     }
     const file = new File([JSON.stringify({app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), cards: out})],
-      `meishibako-backup-${ymd()}.json`, {type: 'application/json'});
+      `meishibako-backup-${boxFileTag()}${ymd()}.json`, {type: 'application/json'});
     if (!await deliver(file, 'めいしばこのバックアップ')) return;
-    await setMeta({lastBackup: Date.now(), dirtySince: null, snoozeUntil: 0});
+    if (box.kind === 'local') await setMeta({lastBackup: Date.now(), dirtySince: null, snoozeUntil: 0});
     toast(`${cards.length}枚をバックアップしました 📦`);
   } catch { toast('バックアップを作れませんでした。もう一度ためしてください'); }
   finally { btns.forEach(b => b.disabled = false); renderBanners(); }
@@ -807,7 +884,7 @@ async function importCards(list){
     }
     if (!hasImage && prev?.hasImage) { thumb = prev.thumb; hasImage = true; image = undefined; }
     const card = cleanCard({...raw, id, thumb, hasImage}, true);
-    await dbPut(card, image);
+    await savePut(card, image, prev || null);
     known.set(id, card);
     prev ? r.updated++ : r.added++;
   }
@@ -926,13 +1003,547 @@ async function exportExcel(){
   const btn = $('#xlsxBtn'); btn.disabled = true;
   try {
     const rows = sorted(cards);
-    const file = new File([zipStore(workbookParts(rows), XLSX_MIME)], `meishibako-${ymd()}.xlsx`, {type: XLSX_MIME});
+    const file = new File([zipStore(workbookParts(rows), XLSX_MIME)], `meishibako-${boxFileTag()}${ymd()}.xlsx`, {type: XLSX_MIME});
     if (await deliver(file, 'めいしばこ（Excel）')) toast(`${rows.length}枚をExcelファイルに書き出しました 📊`);
   } catch { toast('Excelファイルを作れませんでした。もう一度ためしてください'); }
   finally { btn.disabled = false; }
 }
 
+/* ---------- グループ（Firebase） ----------
+   firebase-config.js に設定があるときだけ動く。設定がなければ「この端末だけ」のまま。
+   Cloud Firestore の置き場所：
+     users/{uid}                  自分の表示名
+     users/{uid}/groups/{gid}     自分が入っているグループの一覧
+     groups/{gid}                 グループ名・作成者・招待の合言葉
+     groups/{gid}/members/{uid}   メンバー（owner / member）
+     groups/{gid}/cards/{id}      名刺（端末と同じ項目＋だれが追加・更新したか）
+     groups/{gid}/images/{id}     名刺の画像（JPEG を base64 で。1件 1MB 未満）
+   だれが読み書きできるかは firestore.rules で決めている */
+const FB_SDK = './vendor/firebase-13.0.0.js';
+let fb = null, fdb = null, auth = null, cloudOn = false, cfgPromise = null;
+let me = null, myGroups = [], members = {}, groupDoc = null, pendingJoin = null;
+let unsubCards = null, unsubMembers = null, unsubGroup = null, unsubMyGroups = null;
+const imgCache = new Map();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const withTimeout = (p, ms, msg) => Promise.race([p, sleep(ms).then(() => { throw Object.assign(new Error(msg), {code: 'timeout'}); })]);
+const OFFLINE_MSG = 'ネットにつながっているときに、もう一度ためしてください';
+const CODE_CHARS = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randCode = () => Array.from(crypto.getRandomValues(new Uint8Array(20)), b => CODE_CHARS[b % CODE_CHARS.length]).join('');
+const inviteLink = (gid, code) => `${location.origin}${location.pathname}#join=${gid}.${code}`;
+const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
+const boxFileTag = () => box.kind === 'group' ? String(box.name || '').replace(/[\\/:*?"<>|\s.]+/g, '_').slice(0, 40) + '-' : '';
+const byWhom = (uid, name) => { if (box.kind !== 'group' || !uid) return ''; const n = members[uid]?.name || name; return n ? `（${esc(n)}）` : ''; };
+const showOv = id => $(id).classList.add('show');
+const hideOv = id => $(id).classList.remove('show');
+
+function cloudErrorMsg(e){
+  const c = e?.code || '';
+  if (c === 'timeout') return e.message;
+  if (c === 'permission-denied') return 'このグループで保存する権限がありません。メンバーから外れた可能性があります';
+  if (c === 'not-found') return 'ほかのメンバーがこの名刺を削除しました';
+  if (c === 'unavailable') return OFFLINE_MSG;
+  if (c === 'resource-exhausted') return '保存できる量（無料の範囲）を超えました。時間をおくか、いらない名刺を削除してください';
+  if (c === 'image-too-large') return '画像が大きすぎて保存できませんでした。別の画像をためしてください';
+  return 'うまくいきませんでした。もう一度ためしてください';
+}
+function authErrorMsg(e){
+  const c = e?.code || '';
+  if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return 'メールアドレスかパスワードがちがいます';
+  if (c.includes('email-already-in-use')) return 'このメールアドレスはもう登録されています。「ログイン」を押してください';
+  if (c.includes('weak-password')) return 'パスワードは6文字以上にしてください';
+  if (c.includes('invalid-email')) return 'メールアドレスの形がちがいます';
+  if (/popup-closed-by-user|cancelled-popup-request/.test(c)) return 'ログインをやめました';
+  if (c.includes('popup-blocked')) return 'ポップアップがブロックされました。メールアドレスでログインするか、ブラウザで開いてください';
+  if (/operation-not-supported|web-storage-unsupported/.test(c)) return 'ここではGoogleでログインできません。メールアドレスでログインしてください';
+  if (c.includes('unauthorized-domain')) return 'このURLはログインが許可されていません（Firebaseの「承認済みドメイン」を確認してください）';
+  if (c.includes('network-request-failed')) return OFFLINE_MSG;
+  if (c.includes('too-many-requests')) return '回数が多すぎます。少し待ってからためしてください';
+  return 'ログインできませんでした';
+}
+
+function loadConfig(){
+  cfgPromise ??= import('./firebase-config.js')
+    .then(m => { const c = m.default; return c && typeof c === 'object' && c.apiKey && c.projectId ? c : null; })
+    .catch(() => null);
+  return cfgPromise;
+}
+async function initCloud(){
+  const cfg = await loadConfig();
+  if (!cfg) {
+    if (box.kind === 'group') openBox({kind: 'local'});
+    if (pendingJoin) { pendingJoin = null; toast('グループ機能はまだ使えるようになっていません'); }
+    return;
+  }
+  try {
+    fb = await import(FB_SDK);
+    const app = fb.initializeApp(cfg);
+    auth = fb.getAuth(app);
+    let cache;
+    try { cache = fb.persistentLocalCache({tabManager: fb.persistentMultipleTabManager()}); } catch { cache = fb.memoryLocalCache(); }
+    fdb = fb.initializeFirestore(app, {localCache: cache});
+    if (cfg.emulators && isLocalhost) {   // 開発・テスト用（本番のURLでは使わない）
+      fb.connectAuthEmulator(auth, cfg.emulators.auth, {disableWarnings: true});
+      fb.connectFirestoreEmulator(fdb, cfg.emulators.firestoreHost, cfg.emulators.firestorePort);
+    }
+  } catch {
+    fb = null;
+    if (box.kind === 'group') openBox({kind: 'local'});
+    toast('グループ機能を読み込めませんでした。ネットにつながってから開き直してください');
+    return;
+  }
+  cloudOn = true;
+  renderBoxBtn();
+  fb.onAuthStateChanged(auth, user => { onAuth(user).catch(() => {}); });
+}
+async function onAuth(user){
+  unsubMyGroups?.(); unsubMyGroups = null;
+  if (!user) {
+    me = null; myGroups = [];
+    if (box.kind === 'group') openBox({kind: 'local'});
+    renderBoxBtn();
+    handleInvite();
+    return;
+  }
+  const nameKey = `meishibako:name:${user.uid}`, fallback = str(user.displayName || (user.email || '').split('@')[0], 40) || 'メンバー';
+  me = {uid: user.uid, email: user.email || '', name: ls.get(nameKey) || ''};
+  // 先にグループの一覧と開いているグループを読み始める（圏外でも、端末に残っている分はすぐ見られるように）
+  unsubMyGroups = fb.onSnapshot(fb.collection(fdb, `users/${user.uid}/groups`), snap => {
+    myGroups = snap.docs.map(d => ({id: d.id, name: d.data().name || 'グループ'})).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    if ($('#boxOv').classList.contains('show')) openBoxPanel();
+  }, () => {});
+  if (box.kind === 'group' && !unsubCards) subscribeGroup(box.id);
+  renderBoxBtn();
+  let prof = null;
+  try { prof = await withTimeout(fb.getDoc(fb.doc(fdb, `users/${user.uid}`)), 8000, OFFLINE_MSG); } catch {}
+  if (me?.uid !== user.uid) return;                       // 待っているあいだにログアウトした
+  if (prof?.exists() && prof.data().name) me.name = prof.data().name;
+  else if (prof && !prof.metadata.fromCache) me.name = await askName(me.name || fallback);   // はじめてのログイン：グループで使う名前を決める
+  if (!me.name) me.name = fallback;                       // 圏外で確かめられないときは仮の名前（保存はしない）
+  ls.set(nameKey, me.name);
+  handleInvite();
+}
+// グループで使う名前を決める。cancelable のときは「やめる」で null を返す
+function askName(def, cancelable){
+  return new Promise(res => {
+    $('#n-name').value = str(def, 40);
+    $('#nameSave').disabled = false;
+    $('#nameCancel').hidden = !cancelable;
+    $('#nameCancel').onclick = () => { hideOv('#nameOv'); res(null); };
+    showOv('#nameOv');
+    if (!isMobile) $('#n-name').focus();
+    $('#nameForm').onsubmit = async e => {
+      e.preventDefault();
+      const name = str($('#n-name').value, 40);
+      if (!name) { toast('名前を入れてください'); return; }
+      $('#nameSave').disabled = true;
+      try { await withTimeout(fb.setDoc(fb.doc(fdb, `users/${me.uid}`), {name}), 10000, OFFLINE_MSG); }
+      catch (err) { $('#nameSave').disabled = false; toast(cloudErrorMsg(err)); return; }
+      hideOv('#nameOv');
+      res(name);
+    };
+  });
+}
+async function renameMe(){
+  hideOv('#boxOv');
+  const name = await askName(me.name, true);
+  if (!name || !me) return;
+  me.name = name; ls.set(`meishibako:name:${me.uid}`, name);
+  for (const g of myGroups) fb.updateDoc(fb.doc(fdb, `groups/${g.id}/members/${me.uid}`), {name}).catch(() => {});
+  toast('名前を変えました');
+}
+async function logout(){
+  hideOv('#boxOv');
+  // まだ送れていない変更があるときは、ログアウトすると消えてしまうので止める
+  const flushed = await Promise.race([fb.waitForPendingWrites(fdb).then(() => true, () => true), sleep(5000).then(() => false)]);
+  if (!flushed) { toast('まだ送れていない変更があります。ネットにつながってから、もう一度ログアウトしてください'); return; }
+  unsubGroupListeners(); unsubMyGroups?.();
+  try { await fb.signOut(auth); } catch {}
+  try { await fb.terminate(fdb); await fb.clearIndexedDbPersistence(fdb); } catch {}   // この端末に残ったグループのデータも消す
+  ls.set('meishibako:box', 'local');
+  location.reload();
+}
+
+/* 名刺箱の切り替え */
+function renderBoxBtn(){
+  const b = $('#boxBtn');
+  b.disabled = !cloudOn;
+  b.textContent = box.kind === 'group' ? `👥 ${box.name || 'グループ'} ▾` : cloudOn ? '📱 この端末 ▾' : '🔒 この端末だけに保存';
+}
+let subGen = 0, deniedOnce = null;
+function unsubGroupListeners(){ subGen++; unsubCards?.(); unsubMembers?.(); unsubGroup?.(); unsubCards = unsubMembers = unsubGroup = null; }
+function openBox(b){
+  unsubGroupListeners();
+  members = {}; groupDoc = null;
+  box = b.kind === 'group' ? {kind: 'group', id: b.id, name: b.name || 'グループ'} : {kind: 'local'};
+  ls.set('meishibako:box', box.kind === 'group' ? box.id : 'local');
+  if (box.kind === 'group') ls.set('meishibako:boxName', box.name);
+  hideOv('#groupOv'); closeDetail(); closeEdit();
+  renderBoxBtn();
+  cards = []; state = 'loading'; render();   // 前の名刺箱の名刺を一瞬でも残さない
+  if (box.kind === 'local') { if (idb) reload(); else { state = 'error'; render(); } return; }
+  if (me) subscribeGroup(box.id);
+}
+function subscribeGroup(gid){
+  if (!fdb || !me) return;
+  unsubGroupListeners();
+  const gen = subGen, live = () => gen === subGen && box.kind === 'group' && box.id === gid;
+  unsubCards = fb.onSnapshot(fb.collection(fdb, `groups/${gid}/cards`), snap => {
+    if (!live()) return;
+    // ほかのメンバーが書いた名刺も、端末に保存するときと同じ形に整えてから表示する
+    cards = snap.docs.map(d => cleanCard({...d.data(), id: d.id}, true)).filter(c => c.name);
+    if (!snap.metadata.fromCache) deniedOnce = null;
+    state = 'ready'; render();
+  }, err => groupError(gid, gen, err));
+  unsubMembers = fb.onSnapshot(fb.collection(fdb, `groups/${gid}/members`), snap => {
+    if (!live()) return;
+    members = Object.fromEntries(snap.docs.map(d => [d.id, {...d.data(), uid: d.id, name: str(d.data().name, 40) || 'メンバー'}]));
+    // サーバーのメンバー一覧から自分が消えた＝外された（またはグループが削除された）
+    if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites && !members[me.uid]) { notMember(gid); return; }
+    renderGroupPanel();
+  }, () => {});
+  unsubGroup = fb.onSnapshot(fb.doc(fdb, `groups/${gid}`), s => {
+    if (!live() || !s.exists()) return;
+    groupDoc = s.data();
+    const name = str(groupDoc.name, 60);
+    if (name && name !== box.name) { box.name = name; ls.set('meishibako:boxName', name); renderBoxBtn(); render(); }
+    const mine = myGroups.find(g => g.id === gid);
+    if (mine && name && mine.name !== name) fb.setDoc(fb.doc(fdb, `users/${me.uid}/groups/${gid}`), {name}, {merge: true}).catch(() => {});
+    renderGroupPanel();
+  }, err => groupError(gid, gen, err));
+}
+function groupError(gid, gen, err){
+  if (gen !== subGen || box.kind !== 'group' || box.id !== gid) return;
+  unsubGroupListeners();   // もう片方の監視のエラーは無視する
+  if (err?.code === 'permission-denied' && deniedOnce !== gid) {
+    // 作ったり参加したりした直後は、サーバーへの書き込みより読み込みが先に届くことがある。少し待ってもう一度だけためす
+    deniedOnce = gid;
+    setTimeout(() => { if (box.kind === 'group' && box.id === gid && !unsubCards) subscribeGroup(gid); }, 3000);
+    return;
+  }
+  if (err?.code === 'permission-denied') notMember(gid);
+  else { state = 'error'; render(); }
+}
+function notMember(gid){
+  if (box.kind !== 'group' || box.id !== gid) return;
+  deniedOnce = null;
+  toast('このグループは開けません。メンバーから外れたか、グループが削除されたようです');
+  if (me) fb.deleteDoc(fb.doc(fdb, `users/${me.uid}/groups/${gid}`)).catch(() => {});   // 自分のグループ一覧からも消す
+  openBox({kind: 'local'});
+}
+function openBoxPanel(){
+  if (!cloudOn) return;
+  const cur = box.kind === 'group' ? box.id : 'local';
+  const items = [{id: 'local', label: '📱 この端末だけ（ログインなしで使える）'}, ...myGroups.map(g => ({id: g.id, label: '👥 ' + g.name}))];
+  $('#boxPanel').innerHTML = `
+    <button type="button" class="close-x" data-close aria-label="閉じる">✕</button>
+    <h2>📦 名刺箱をえらぶ</h2>
+    <div class="box-list">${items.map(it => `<button type="button" class="box-item${it.id === cur ? ' on' : ''}" data-box="${esc(it.id)}">${esc(it.label)}</button>`).join('')}</div>
+    ${me ? `
+      ${box.kind === 'group' ? '<button type="button" class="btn btn-sub wide" id="openGroup">⚙️ このグループのメンバーと招待</button>' : ''}
+      <h3>新しいグループを作る</h3>
+      <form class="inline-form" id="newGroupForm" novalidate><input id="newGroupName" maxlength="60" placeholder="例：もふもふ読書会" aria-label="新しいグループの名前"><button type="submit" class="btn btn-main">＋ 作る</button></form>
+      <p class="note-l">${esc(me.name)}（${esc(me.email || 'Googleアカウント')}）でログイン中 ・ <button type="button" class="add-link" id="renameMe">名前を変える</button> ・ <button type="button" class="add-link" id="logout">ログアウト</button></p>`
+    : `<p class="note-l">グループで名刺を共有するには、ログインしてください。招待されたグループにも、ログインすると参加できます。</p>
+       <button type="button" class="btn btn-main wide" id="openLogin">🔑 ログイン / 新しく登録</button>`}`;
+  const p = $('#boxPanel');
+  p.querySelector('[data-close]').onclick = () => hideOv('#boxOv');
+  p.querySelectorAll('[data-box]').forEach(b => b.onclick = () => {
+    hideOv('#boxOv');
+    const id = b.dataset.box;
+    if (id === cur) return;
+    if (id === 'local') openBox({kind: 'local'});
+    else openBox({kind: 'group', id, name: myGroups.find(g => g.id === id)?.name});
+  });
+  p.querySelector('#openGroup')?.addEventListener('click', () => { hideOv('#boxOv'); openGroupPanel(); });
+  p.querySelector('#openLogin')?.addEventListener('click', () => { hideOv('#boxOv'); openAuth(''); });
+  p.querySelector('#renameMe')?.addEventListener('click', renameMe);
+  p.querySelector('#logout')?.addEventListener('click', logout);
+  const f = p.querySelector('#newGroupForm');
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const name = str($('#newGroupName').value, 60);
+    if (!name) { toast('グループの名前を入れてください'); return; }
+    const btn = f.querySelector('button'); btn.disabled = true;
+    try { await createGroup(name); hideOv('#boxOv'); toast(`グループ「${name}」を作りました 🎉`); }
+    catch (err) { toast(cloudErrorMsg(err)); }
+    finally { btn.disabled = false; }
+  };
+  showOv('#boxOv');
+}
+
+/* ログイン */
+function openAuth(msg){
+  $('#authMsg').textContent = msg || 'ログインすると、グループを作ったり、招待されたグループに参加したりできます。';
+  $('#a-pass').value = '';
+  showOv('#authOv');
+}
+async function authDo(kind){
+  const email = $('#a-mail').value.trim(), pass = $('#a-pass').value;
+  if ((kind === 'login' || kind === 'signup') && (!email || !pass)) { toast('メールアドレスとパスワードを入れてください'); return; }
+  if (kind === 'reset' && !email) { toast('メールアドレスを入れてから押してください'); return; }
+  const btns = ['#loginBtn', '#signupBtn', '#googleBtn', '#resetBtn'].map(s => $(s));
+  btns.forEach(b => b.disabled = true);
+  try {
+    if (kind === 'google') await fb.signInWithPopup(auth, new fb.GoogleAuthProvider());
+    else if (kind === 'login') await fb.signInWithEmailAndPassword(auth, email, pass);
+    else if (kind === 'signup') await fb.createUserWithEmailAndPassword(auth, email, pass);
+    else { await fb.sendPasswordResetEmail(auth, email); toast('パスワードを決め直すためのメールを送りました'); return; }
+    hideOv('#authOv'); $('#a-pass').value = '';
+  } catch (err) { toast(authErrorMsg(err)); }
+  finally { btns.forEach(b => b.disabled = false); }
+}
+
+/* グループを作る・参加する */
+// グループ・自分（owner）・自分のグループ一覧を、1回の書き込みでまとめて作る（途中で止まって半端に残らないように）
+async function createGroup(name){
+  const gref = fb.doc(fb.collection(fdb, 'groups')), now = Date.now(), b = fb.writeBatch(fdb);
+  b.set(gref, {name, createdBy: me.uid, createdAt: now, joinCode: randCode()});
+  b.set(fb.doc(fdb, `groups/${gref.id}/members/${me.uid}`), {uid: me.uid, name: me.name, role: 'owner', joinedAt: now});
+  b.set(fb.doc(fdb, `users/${me.uid}/groups/${gref.id}`), {name, joinedAt: now});
+  await withTimeout(b.commit(), 10000, OFFLINE_MSG);
+  openBox({kind: 'group', id: gref.id, name});
+}
+function readInvite(){
+  const m = /^#join=([A-Za-z0-9]{8,40})\.([A-Za-z0-9]{16,40})$/.exec(location.hash);
+  if (!m) return;
+  pendingJoin = {gid: m[1], code: m[2]};
+  history.replaceState(null, '', location.pathname + location.search);   // 合言葉をアドレス欄に残さない
+}
+// 招待リンクで開かれたとき：ログインしていれば参加の確認、していなければログインをすすめる
+function handleInvite(){
+  if (!pendingJoin || !cloudOn) return;
+  if (me) confirmJoin();
+  else openAuth('グループに招待されています。ログイン（はじめての人は「新しく登録」）すると参加できます。');
+}
+function closeJoin(){ pendingJoin = null; hideOv('#joinOv'); }
+function confirmJoin(){
+  const j = pendingJoin;
+  if (!j || !me) return;
+  $('#joinPanel').innerHTML = `
+    <h2>👥 グループに招待されています</h2>
+    <p class="note-l">参加すると、このグループの名刺を見たり、追加・編集・削除したりできます。メンバーには「${esc(me.name)}」と表示されます。</p>
+    <div class="actions"><button type="button" class="btn btn-sub" id="joinNo">やめる</button><button type="button" class="btn btn-main" id="joinYes">参加する</button></div>`;
+  $('#joinNo').onclick = closeJoin;
+  $('#joinYes').onclick = async () => {
+    $('#joinYes').disabled = true;
+    try { await joinGroup(j.gid, j.code); pendingJoin = null; hideOv('#joinOv'); }
+    catch (err) {
+      toast(err?.code === 'permission-denied' ? 'この招待リンクは使えません。グループの人に新しいリンクをもらってください' : cloudErrorMsg(err));
+      $('#joinYes').disabled = false;
+    }
+  };
+  showOv('#joinOv');
+}
+async function joinGroup(gid, code){
+  const mref = fb.doc(fdb, `groups/${gid}/members/${me.uid}`), iref = fb.doc(fdb, `users/${me.uid}/groups/${gid}`), now = Date.now();
+  let already = false;
+  try { already = (await withTimeout(fb.getDoc(mref), 10000, OFFLINE_MSG)).exists(); }
+  catch (err) { if (err?.code === 'timeout') throw err; }   // メンバーでなければ読めない＝まだ参加していない
+  if (!already) {
+    // 参加と「自分のグループ一覧」への追加を1回で。名前は、参加してから読めるようになるので後で入れる
+    const b = fb.writeBatch(fdb);
+    b.set(mref, {uid: me.uid, name: me.name, role: 'member', code, joinedAt: now});
+    b.set(iref, {name: 'グループ', joinedAt: now});
+    await withTimeout(b.commit(), 10000, OFFLINE_MSG);
+  }
+  let name = 'グループ';
+  try { const g = await withTimeout(fb.getDoc(fb.doc(fdb, `groups/${gid}`)), 10000, OFFLINE_MSG); if (g.exists()) name = str(g.data().name, 60) || name; } catch {}
+  fb.setDoc(iref, {name, joinedAt: now}, {merge: true}).catch(() => {});
+  openBox({kind: 'group', id: gid, name});
+  toast(already ? `「${name}」を開きました` : `「${name}」に参加しました 🎉`);
+}
+
+/* グループの設定（招待リンク・メンバー・コピー・抜ける／削除） */
+function armButton(btn, label, run){
+  btn.onclick = async () => {
+    if (!btn.classList.contains('armed')) {
+      btn.dataset.label = btn.textContent; btn.classList.add('armed'); btn.textContent = label;
+      clearTimeout(btn._t); btn._t = setTimeout(() => { btn.classList.remove('armed'); btn.textContent = btn.dataset.label; }, 4000);
+      return;
+    }
+    clearTimeout(btn._t); btn.disabled = true;
+    try { await run(); } catch (err) { toast(cloudErrorMsg(err)); }
+    finally { btn.disabled = false; btn.classList.remove('armed'); if (btn.dataset.label) btn.textContent = btn.dataset.label; }
+  };
+}
+function openGroupPanel(){ if (box.kind !== 'group' || !me) return; showOv('#groupOv'); renderGroupPanel(true); }
+let gpTimer = 0;
+function renderGroupPanel(force){
+  clearTimeout(gpTimer);
+  if (!$('#groupOv').classList.contains('show') || box.kind !== 'group' || !me) return;
+  // 入力中や「もう一度押すと…」の確認中は描き直さない（1秒ごとに様子を見て、終わったら描き直す）
+  const p = $('#groupPanel'), busy = (p.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') || p.querySelector('.armed');
+  if (!force && busy) { gpTimer = setTimeout(renderGroupPanel, 1000); return; }
+  const owner = members[me.uid]?.role === 'owner';
+  const list = Object.values(members).sort((a, b) => (b.role === 'owner') - (a.role === 'owner') || String(a.name).localeCompare(String(b.name), 'ja'));
+  const link = groupDoc?.joinCode ? inviteLink(box.id, groupDoc.joinCode) : '';
+  $('#groupPanel').innerHTML = `
+    <button type="button" class="close-x" data-close aria-label="閉じる">✕</button>
+    <h2>👥 ${esc(box.name)}</h2>
+    ${owner ? `<form class="inline-form" id="renameGroupForm" novalidate><input id="groupName" maxlength="60" value="${esc(box.name)}" aria-label="グループの名前"><button type="submit" class="btn btn-sub">名前を変える</button></form>` : ''}
+    <h3>招待リンク</h3>
+    <p class="note-l">このリンクを開いてログインした人は、このグループに参加できます。信頼できる人にだけ送ってください。</p>
+    <div class="invite"><input readonly id="inviteLink" value="${esc(link)}" aria-label="招待リンク"><button type="button" class="copy" id="copyInvite">コピー</button></div>
+    ${navigator.share ? '<button type="button" class="btn btn-sub" id="shareInvite">📤 リンクを送る</button>' : ''}
+    ${owner ? '<p><button type="button" class="add-link" id="rotateInvite">🔄 招待リンクを作り直す（今のリンクは使えなくなります）</button></p>' : ''}
+    <h3>メンバー（${list.length}人）</h3>
+    <ul class="members">${list.map(m => `<li><span>${m.role === 'owner' ? '👑' : '🐰'} ${esc(m.name)}${m.uid === me.uid ? '（あなた）' : ''}</span>${owner && m.uid !== me.uid ? `<button type="button" class="add-link danger" data-remove="${esc(m.uid)}">外す</button>` : ''}</li>`).join('')}</ul>
+    <h3>この端末の名刺</h3>
+    <p class="note-l">この端末だけに保存している名刺を、このグループにコピーします（すでにある名刺は重ねてコピーしません）。</p>
+    <button type="button" class="btn btn-sub" id="copyLocal">📱 → 👥 このグループにコピー</button>
+    <div class="danger-zone">${owner ? '<button type="button" class="btn btn-danger" id="deleteGroup">🗑 グループを削除</button>' : '<button type="button" class="btn btn-danger" id="leaveGroup">🚪 このグループから抜ける</button>'}</div>`;
+  const gid = box.id;
+  p.querySelector('[data-close]').onclick = () => hideOv('#groupOv');
+  p.querySelector('#copyInvite').onclick = async () => {
+    try { await navigator.clipboard.writeText(link); toast('招待リンクをコピーしました'); }
+    catch { $('#inviteLink').select(); toast('選択しました。長押しかCtrl+Cでコピーしてね'); }
+  };
+  p.querySelector('#shareInvite')?.addEventListener('click', () => navigator.share({title: `めいしばこ「${box.name}」への招待`, url: link}).catch(() => {}));
+  const rf = p.querySelector('#renameGroupForm');
+  if (rf) rf.onsubmit = async e => {
+    e.preventDefault();
+    const name = str($('#groupName').value, 60);
+    if (!name) { toast('グループの名前を入れてください'); return; }
+    try { await withTimeout(fb.updateDoc(fb.doc(fdb, `groups/${gid}`), {name}), 10000, OFFLINE_MSG); toast('グループの名前を変えました'); }
+    catch (err) { toast(cloudErrorMsg(err)); }
+  };
+  const rot = p.querySelector('#rotateInvite');
+  if (rot) armButton(rot, 'もう一度押すと作り直します', async () => {
+    await withTimeout(fb.updateDoc(fb.doc(fdb, `groups/${gid}`), {joinCode: randCode()}), 10000, OFFLINE_MSG);
+    toast('招待リンクを作り直しました。前のリンクはもう使えません');
+  });
+  p.querySelectorAll('[data-remove]').forEach(btn => armButton(btn, 'もう一度押すと外します', async () => {
+    const b = fb.writeBatch(fdb);
+    b.delete(fb.doc(fdb, `groups/${gid}/members/${btn.dataset.remove}`));
+    b.update(fb.doc(fdb, `groups/${gid}`), {joinCode: randCode()});   // 外した人が前のリンクで戻ってこられないように、招待リンクも作り直す
+    await withTimeout(b.commit(), 10000, OFFLINE_MSG);
+    toast('メンバーから外しました。招待リンクも新しくしました');
+  }));
+  p.querySelector('#copyLocal').onclick = e => copyLocalToGroup(e.currentTarget);
+  const del = p.querySelector('#deleteGroup');
+  if (del) armButton(del, 'もう一度押すと、名刺もふくめて全部消します', () => deleteGroupAll(gid));
+  const leave = p.querySelector('#leaveGroup');
+  if (leave) armButton(leave, 'もう一度押すと抜けます', () => leaveGroup(gid));
+}
+async function copyLocalToGroup(btn){
+  if (!idb) { toast('この端末の名刺を読めませんでした'); return; }
+  const local = (await dbGetAll()).filter(c => c && c.name);
+  const have = new Set(cards.map(c => c.id));
+  const todo = local.filter(c => !have.has(c.id));
+  if (!todo.length) { toast(local.length ? 'この端末の名刺は、もう全部このグループにあります' : 'この端末には名刺がありません'); return; }
+  btn.disabled = true;
+  let n = 0;
+  try {
+    for (const c of todo) {
+      let image;
+      if (c.hasImage) { const b = await dbImage(c.id); if (b) image = {type: b.type || 'image/jpeg', data: await b.arrayBuffer()}; }
+      await groupPut(box.id, cleanCard({...c}, true), image, null);
+      btn.textContent = `コピー中… ${++n} / ${todo.length}`;
+    }
+    toast(`${n}枚をこのグループにコピーしました 🎉`);
+  } catch (err) { toast(`${n}枚コピーしたところで止まりました。${cloudErrorMsg(err)}`); }
+  finally { btn.disabled = false; btn.textContent = '📱 → 👥 このグループにコピー'; }
+}
+async function leaveGroup(gid){
+  const b = fb.writeBatch(fdb);
+  b.delete(fb.doc(fdb, `groups/${gid}/members/${me.uid}`));
+  b.delete(fb.doc(fdb, `users/${me.uid}/groups/${gid}`));
+  unsubGroupListeners();
+  try { await withTimeout(b.commit(), 10000, OFFLINE_MSG); }
+  catch (err) { subscribeGroup(gid); throw err; }
+  openBox({kind: 'local'});
+  toast('グループから抜けました');
+}
+// 名刺・画像・ほかのメンバーを消してから、最後にグループ本体と自分をまとめて消す
+async function deleteGroupAll(gid){
+  const refs = [];
+  for (const c of cards) refs.push(fb.doc(fdb, `groups/${gid}/cards/${c.id}`), fb.doc(fdb, `groups/${gid}/images/${c.id}`));
+  for (const uid of Object.keys(members)) if (uid !== me.uid) refs.push(fb.doc(fdb, `groups/${gid}/members/${uid}`));
+  unsubGroupListeners();
+  try {
+    for (let i = 0; i < refs.length; i += 400) {
+      const b = fb.writeBatch(fdb);
+      refs.slice(i, i + 400).forEach(r => b.delete(r));
+      await withTimeout(b.commit(), 20000, OFFLINE_MSG);
+    }
+    const b = fb.writeBatch(fdb);
+    b.delete(fb.doc(fdb, `groups/${gid}`));
+    b.delete(fb.doc(fdb, `groups/${gid}/members/${me.uid}`));
+    b.delete(fb.doc(fdb, `users/${me.uid}/groups/${gid}`));
+    await withTimeout(b.commit(), 10000, OFFLINE_MSG);
+  } catch (err) { subscribeGroup(gid); throw err; }
+  openBox({kind: 'local'});
+  toast('グループを削除しました');
+}
+
+/* グループの名刺・画像の保存 */
+// Firestore の1件は1MBまで。画像は base64 で 90万文字以内に収まるまで小さくする
+async function imageForCloud(img){
+  const orig = new Blob([img.data], {type: img.type || 'image/jpeg'});
+  let im = null;
+  for (const [max, q] of [[0, 0], [1600, .82], [1280, .78], [1024, .72], [800, .65]]) {
+    const blob = max ? await canvasBlob(drawJpeg(im ||= await loadImg(orig), max), q) : orig;
+    const b64 = (await blobToDataURL(blob)).split(',')[1] || '';
+    if (b64.length <= 900000 && ['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)) return {data: b64, type: blob.type, updated: Date.now()};
+  }
+  throw Object.assign(new Error('image'), {code: 'image-too-large'});
+}
+// サーバーの返事を1.5秒だけ待つ。圏外なら端末に保存して先に進み、つながったときに送られる
+async function commitSoon(p){
+  const r = await Promise.race([p.then(() => 'ok'), sleep(1500).then(() => 'queued')]);
+  if (r === 'queued') p.catch(err => toast(cloudErrorMsg(err)));
+}
+// 編集は「変わった項目だけ」を送る。別々の人が同じ名刺の別の項目を同時に直しても、両方残る
+async function groupPut(gid, card, image, prev){
+  const {id, ...data} = card;
+  const cref = fb.doc(fdb, `groups/${gid}/cards/${id}`), iref = fb.doc(fdb, `groups/${gid}/images/${id}`);
+  const imgDoc = image ? await imageForCloud(image) : null;
+  if (imgDoc) data.imgv = imgDoc.updated; else if (image === null) data.imgv = null;
+  const by = {updatedBy: me.uid, updatedByName: me.name};
+  const b = fb.writeBatch(fdb);
+  if (!prev) b.set(cref, {...data, createdBy: data.createdBy || me.uid, createdByName: data.createdByName || me.name, ...by});
+  else {
+    const patch = {};
+    for (const [k, v] of Object.entries(data)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
+    b.update(cref, {...patch, ...by});
+  }
+  if (imgDoc) b.set(iref, imgDoc); else if (image === null) b.delete(iref);
+  await commitSoon(b.commit());
+}
+async function groupDelete(gid, id){
+  const b = fb.writeBatch(fdb);
+  b.delete(fb.doc(fdb, `groups/${gid}/cards/${id}`));
+  b.delete(fb.doc(fdb, `groups/${gid}/images/${id}`));
+  await commitSoon(b.commit());
+}
+async function groupImage(gid, card){
+  const key = `${gid}/${card.id}/${card.imgv || ''}`;
+  if (imgCache.has(key)) return imgCache.get(key);
+  const s = await fb.getDoc(fb.doc(fdb, `groups/${gid}/images/${card.id}`));
+  if (!s.exists()) return null;
+  const v = s.data();
+  const blob = dataURLtoBlob(`data:${v.type || 'image/jpeg'};base64,${v.data}`);
+  if (imgCache.size >= 60) imgCache.delete(imgCache.keys().next().value);
+  imgCache.set(key, blob);
+  return blob;
+}
+
 /* ---------- イベント ---------- */
+$('#boxBtn').onclick = openBoxPanel;
+$('#authForm').onsubmit = e => { e.preventDefault(); authDo('login'); };
+$('#signupBtn').onclick = () => authDo('signup');
+$('#googleBtn').onclick = () => authDo('google');
+$('#resetBtn').onclick = () => authDo('reset');
+$('#authForm [data-close]').onclick = () => hideOv('#authOv');
+for (const [id, close] of [['#boxOv', () => hideOv('#boxOv')], ['#authOv', () => hideOv('#authOv')], ['#groupOv', () => hideOv('#groupOv')], ['#joinOv', closeJoin]])
+  $(id).addEventListener('mousedown', e => { if (e.target === e.currentTarget) close(); });   // 名前の入力（#nameOv）は外を押しても閉じない
+// アプリを開いたままのタブで招待リンクを開いたとき（アドレスの # だけが変わるので、ページは読み直されない）
+addEventListener('hashchange', () => {
+  readInvite();
+  if (!pendingJoin) return;
+  if (cloudOn) handleInvite();
+  else loadConfig().then(c => { if (!c && pendingJoin) { pendingJoin = null; toast('グループ機能はまだ使えるようになっていません'); } });
+});
 $('#addBtn').onclick = () => openForm();
 $('#xlsxBtn').onclick = exportExcel;
 $('#cancelBtn').onclick = closeEdit;
@@ -957,7 +1568,13 @@ $('#detailOv').addEventListener('mousedown', e => { if (e.target === e.currentTa
 $('#zoom').onclick = () => $('#zoom').classList.remove('show');
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if ($('#zoom').classList.contains('show')) $('#zoom').classList.remove('show');
+  const open = id => $(id).classList.contains('show');
+  if (open('#zoom')) $('#zoom').classList.remove('show');
+  else if (open('#nameOv')) { if (!$('#nameCancel').hidden) $('#nameCancel').click(); }
+  else if (open('#joinOv')) closeJoin();
+  else if (open('#authOv')) hideOv('#authOv');
+  else if (open('#groupOv')) hideOv('#groupOv');
+  else if (open('#boxOv')) hideOv('#boxOv');
   else if ($('#editOv').classList.contains('show')) closeEdit();
   else if ($('#detailOv').classList.contains('show')) closeDetail();
 });
@@ -976,7 +1593,7 @@ $('#importFile').onchange = async e => {
     const r = await importCards(list);
     askPersist();
     toast(`${r.added}枚を追加・${r.updated}枚を更新しました 📂`
-      + (r.skipped ? `（${r.skipped}枚はこの端末の方があたらしいので、そのままにしました）` : '')
+      + (r.skipped ? `（${r.skipped}枚は${box.kind === 'group' ? 'グループ' : 'この端末'}の方があたらしいので、そのままにしました）` : '')
       + (r.failedImg ? `（画像${r.failedImg}枚は読み込めませんでした）` : ''));
   } catch (err) { toast(saveErrorMsg(err)); }
   await afterWrite();
@@ -993,14 +1610,20 @@ $('#installBtn').onclick = async () => {
 
 /* ---------- 起動 ---------- */
 setImg(null);
+readInvite();
+// 前回グループを開いていたら、そのグループから始める（グループ機能が使えなければ「この端末」に戻す）
+const lastBox = ls.get('meishibako:box');
+if (lastBox && lastBox !== 'local' && /^[A-Za-z0-9]{8,40}$/.test(lastBox)) box = {kind: 'group', id: lastBox, name: ls.get('meishibako:boxName') || 'グループ'};
+renderBoxBtn();
 render();
 (async () => {
   try {
     if (!('indexedDB' in window)) throw new Error('no indexedDB');
     idb = await openDB();
-    idb.onversionchange = () => { idb.close(); idb = null; state = 'stale'; render(); };
+    idb.onversionchange = () => { idb.close(); idb = null; if (box.kind === 'local') { state = 'stale'; render(); } };
     await reload();
-  } catch { state = 'error'; render(); }
+  } catch { if (box.kind === 'local') { state = 'error'; render(); } }
+  initCloud();
 })();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
   addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });

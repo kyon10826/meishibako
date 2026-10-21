@@ -1,8 +1,10 @@
 /* めいしばこ service worker
    - ページ本体(index.html)はネット優先：つながっていれば常に最新、つながらなければ保存しておいた版で開く
-   - アイコンなどはキャッシュ優先：中身を変えたら VERSION を上げる
-   - Google Fonts は、一度読んだ分をオフライン用にとっておく */
-const VERSION = 'meishibako-v1';
+   - グループ機能の設定(firebase-config.js)もネット優先：設定を書きかえたら、次に開いたときから効く
+   - アイコンや vendor/ のライブラリなどはキャッシュ優先：中身を変えたら VERSION を上げる（ライブラリはファイル名に版を入れる）
+   - Google Fonts は、一度読んだ分をオフライン用にとっておく
+   - グループの名刺のやりとり（Firebase）は、ここでは触らない（Firebase が自分で端末に保存する） */
+const VERSION = 'meishibako-v2';
 const FONT_CACHE = 'meishibako-fonts';
 const SHELL = [
   './',
@@ -14,6 +16,7 @@ const SHELL = [
   './icons/apple-touch-icon.png'
 ];
 const PAGE_KEY = new URL('./', self.location).href;
+const CONFIG_PATH = new URL('./firebase-config.js', self.location).pathname;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -33,11 +36,14 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
     if (req.mode === 'navigate') e.respondWith(pageFirstFromNetwork(e));
+    else if (url.pathname === CONFIG_PATH) e.respondWith(networkFirst(e));
     else e.respondWith(cacheFirst(req));
   } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(fontCache(e));
   }
 });
+
+const slow = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), ms));
 
 async function pageFirstFromNetwork(e){
   const cache = await caches.open(VERSION);
@@ -48,9 +54,24 @@ async function pageFirstFromNetwork(e){
   e.waitUntil(net.catch(() => {}));
   try {
     // 回線が遅いときは4秒で見切りをつけて、保存しておいた版を出す
-    return await Promise.race([net, new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 4000))]);
+    return await Promise.race([net, slow(4000)]);
   } catch {
     const hit = await cache.match(PAGE_KEY);
+    return hit || net;
+  }
+}
+
+async function networkFirst(e){
+  const cache = await caches.open(VERSION);
+  const net = fetch(e.request, {cache: 'no-cache'}).then(async res => {
+    if (res.ok) await cache.put(e.request, res.clone());
+    return res;
+  });
+  e.waitUntil(net.catch(() => {}));
+  try {
+    return await Promise.race([net, slow(4000)]);
+  } catch {
+    const hit = await cache.match(e.request, {ignoreSearch: true});
     return hit || net;
   }
 }

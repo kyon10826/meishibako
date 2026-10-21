@@ -1,0 +1,87 @@
+rules_version = '2';
+
+// めいしばこ：Cloud Firestore のアクセスルール
+// ・グループの名刺・画像・メンバー一覧は、そのグループのメンバーだけが読み書きできる
+// ・グループに入れるのは、招待リンクの合言葉（joinCode）を知っている人だけ
+// ・名刺の編集と削除はメンバー全員ができる。グループ名の変更・合言葉の作り直し・メンバーを外すのは作成者（owner）だけ
+// ・自分の名前（users/{uid}）と、自分が入っているグループの一覧（users/{uid}/groups）は本人だけ
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function groupPath(gid) { return /databases/$(database)/documents/groups/$(gid); }
+    function memberPath(gid, uid) { return /databases/$(database)/documents/groups/$(gid)/members/$(uid); }
+    function isMember(gid) { return signedIn() && exists(memberPath(gid, request.auth.uid)); }
+    function isOwner(gid) { return isMember(gid) && get(memberPath(gid, request.auth.uid)).data.role == 'owner'; }
+    function shortText(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid
+        && (request.method == 'delete' || request.method == 'get' || request.method == 'list' || shortText(request.resource.data.name, 40));
+
+      match /groups/{gid} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /groups/{gid} {
+      allow read: if isMember(gid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'createdBy', 'createdAt', 'joinCode'])
+        && request.resource.data.createdBy == request.auth.uid
+        && shortText(request.resource.data.name, 60)
+        && request.resource.data.joinCode is string && request.resource.data.joinCode.size() >= 16;
+      allow update: if isOwner(gid)
+        && request.resource.data.keys().hasOnly(['name', 'createdBy', 'createdAt', 'joinCode'])
+        && request.resource.data.createdBy == resource.data.createdBy
+        && shortText(request.resource.data.name, 60)
+        && request.resource.data.joinCode is string && request.resource.data.joinCode.size() >= 16;
+      allow delete: if isOwner(gid);
+
+      match /members/{uid} {
+        allow read: if isMember(gid);
+        // 参加：本人が、今の合言葉を添えて member として入る。
+        // 作成者は自分を owner として登録する（グループ作成と同じ一括書き込みでも通るように getAfter で確かめる）
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && shortText(request.resource.data.name, 40)
+          && (
+            (request.resource.data.role == 'member'
+              && request.resource.data.code == get(groupPath(gid)).data.joinCode)
+            || (request.resource.data.role == 'owner'
+              && getAfter(groupPath(gid)).data.createdBy == request.auth.uid)
+          );
+        // 自分の表示名だけ変えられる（役割は変えられない）
+        allow update: if signedIn() && request.auth.uid == uid
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.role == resource.data.role
+          && shortText(request.resource.data.name, 40);
+        // 抜ける（作成者は抜けられない。グループを消すときは、同じ一括書き込みで消せる）／作成者がほかの人を外す
+        allow delete: if signedIn() && (
+          (request.auth.uid == uid && (resource.data.role != 'owner' || !existsAfter(groupPath(gid))))
+          || (request.auth.uid != uid && isOwner(gid))
+        );
+      }
+
+      match /cards/{cardId} {
+        allow read: if isMember(gid);
+        allow create, update: if isMember(gid) && validCard(request.resource.data);
+        allow delete: if isMember(gid);
+      }
+
+      match /images/{cardId} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid)
+          && request.resource.data.data is string && request.resource.data.data.size() <= 1000000
+          && request.resource.data.type in ['image/jpeg', 'image/png', 'image/webp'];
+      }
+    }
+
+    function validCard(d) {
+      return shortText(d.name, 200)
+        && d.size() <= 60
+        && (!('thumb' in d) || d.thumb == null || (d.thumb is string && d.thumb.size() <= 100000))
+        && (!('memo' in d) || (d.memo is string && d.memo.size() <= 5000));
+    }
+  }
+}
