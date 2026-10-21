@@ -113,7 +113,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
 .avatar{flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:700;background:var(--accent,var(--c0));color:var(--text);overflow:hidden;box-shadow:0 0 0 3px var(--accent,var(--c0))}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .card-name{display:block;font-size:18px;font-weight:700;margin:0;word-break:break-all}
-.card-company{display:block;font-size:13px;color:var(--text-sub);margin:0;word-break:break-all}
+.card-community,.card-company{display:block;font-size:13px;color:var(--text-sub);margin:0;word-break:break-all}
 .hearts{position:absolute;top:14px;right:14px;font-size:14px;letter-spacing:1px}
 .card-info{margin-top:10px;font-size:13px;color:var(--text-sub);display:grid;gap:2px}
 .card-info span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -197,7 +197,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
   <div class="wrap head-inner">
     <h1 class="logo"><span aria-hidden="true">🐰</span>めいしばこ</h1>
     <span class="role">🔒 この端末だけに保存</span>
-    <label class="search"><span aria-hidden="true">🔍</span><input id="q" type="search" placeholder="なまえ・会社・メールでさがす" aria-label="検索" enterkeyhint="search"></label>
+    <label class="search"><span aria-hidden="true">🔍</span><input id="q" type="search" placeholder="なまえ・コミュニティ・会社でさがす" aria-label="検索" enterkeyhint="search"></label>
   </div>
 </header>
 
@@ -206,6 +206,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
   <button type="button" class="chip" data-imp="3">💖💖💖 とってもだいじ</button>
   <button type="button" class="chip" data-imp="2">💖💖 だいじ</button>
   <button type="button" class="chip" data-imp="1">💖 ふつう</button>
+  <button type="button" class="chip" data-imp="4">⭐️ おみせ</button>
   <select id="sort" aria-label="並び替え">
     <option value="new">あたらしい順</option>
     <option value="old">ふるい順</option>
@@ -235,6 +236,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
   <div class="foot-btns">
     <button type="button" class="btn btn-sub" id="exportBtn" hidden>📦 バックアップ保存</button>
     <button type="button" class="btn btn-sub" id="importBtn" hidden>📂 バックアップ読み込み</button>
+    <button type="button" class="btn btn-sub" id="xlsxBtn" hidden>📊 Excelで書き出し</button>
     <button type="button" class="btn btn-sub" id="installBtn" hidden>📲 アプリとして追加</button>
     <input type="file" id="importFile" accept=".json,application/json" hidden>
   </div>
@@ -257,6 +259,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
       <button type="button" class="add-link" id="rmImg" hidden>✕ 画像をはずす</button>
     </div>
     <div class="field"><label for="f-name">なまえ<span class="req">ひっす</span></label><input id="f-name" required placeholder="山田 花子" maxlength="200"></div>
+    <div class="field"><label for="f-community">コミュニティ</label><input id="f-community" placeholder="〇〇勉強会、ゼミ、サークル など" maxlength="200"></div>
     <div class="field"><label for="f-company">会社名</label><input id="f-company" placeholder="株式会社もふもふ" maxlength="200"></div>
     <div class="row2">
       <div class="field"><label for="f-tel">電話番号</label><input id="f-tel" type="tel" placeholder="090-1234-5678" maxlength="100"></div>
@@ -274,6 +277,7 @@ button.card:hover{transform:translateY(-4px) rotate(-.4deg);border-color:var(--p
         <button type="button" data-v="1">💖<br>ふつう</button>
         <button type="button" data-v="2">💖💖<br>だいじ</button>
         <button type="button" data-v="3">💖💖💖<br>とってもだいじ</button>
+        <button type="button" data-v="4">⭐️<br>おみせ</button>
       </div>
     </div>
     <div class="field">
@@ -302,15 +306,17 @@ const LEGACY_HEX = ['#FFE3EC','#BDEFD9','#FFF3B8','#E6DDFF','#FFE0CC','#D6EEFF']
 const normColor = c => { if (COLORS.includes(c)) return c; const i = LEGACY_HEX.indexOf(String(c || '').toUpperCase()); return i >= 0 ? COLORS[i] : 'c0'; };
 const colorVar = c => `var(--${normColor(c)})`;
 const SNS = ['X','Instagram','Facebook','LINE','LinkedIn','TikTok','YouTube','その他'];
-const IMP_LABEL = {1:'ふつう',2:'だいじ',3:'とってもだいじ'};
-const SAMPLE = {name:'もふ田 うさこ', company:'株式会社にんじん堂', tel:'03-0000-0000', email:'usako@example.com', importance:2, color:'c1'};
+const SHOP = 4;                                    // 重要度「⭐️ おみせ」
+const IMP_LABEL = {1:'ふつう', 2:'だいじ', 3:'とってもだいじ', [SHOP]:'おみせ'};
+const IMP_RANK = {3:3, 2:2, 1:1, [SHOP]:0};        // 重要度順では「おみせ」をいちばん後ろに
+const SAMPLE = {name:'もふ田 うさこ', community:'もふもふ読書会', company:'株式会社にんじん堂', tel:'03-0000-0000', email:'usako@example.com', importance:2, color:'c1'};
 const DAY = 864e5, NUDGE_AFTER = 7 * DAY, SNOOZE = 3 * DAY;
 const IMG_MAX = 1600, THUMB_MAX = 200;
 const BACKUP_APP = 'meishibako', BACKUP_VERSION = 1;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const hearts = n => '💖'.repeat(n) + '🤍'.repeat(3 - n);
+const impMark = n => { if (n === SHOP) return '⭐️'; const k = [1, 2, 3].includes(n) ? n : 1; return '💖'.repeat(k) + '🤍'.repeat(3 - k); };
 const first = s => Array.from(String(s || '?'))[0] || '?';
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const safeId = id => (/^[A-Za-z0-9_\-.~:@+]{1,100}$/.test(id) && id !== '.' && id !== '..') ? id : newId();
@@ -318,6 +324,18 @@ const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const num = v => (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0;
 const isThumb = s => typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(s);
 const isMail = s => /^[^\s@<>"']+@[^\s@<>"']+$/.test(s);
+// このアプリが知っている項目。知らない項目（将来の版で増える項目など）は、保存し直しても消さずに残す
+const KNOWN_KEYS = new Set(['id','name','community','company','tel','email','address','memo','sns','importance','color','thumb','hasImage','created','updated','image']);
+function extras(c){
+  const out = {};
+  for (const [k, v] of Object.entries(c && typeof c === 'object' ? c : {})) {
+    if (KNOWN_KEYS.has(k) || !/^[A-Za-z][A-Za-z0-9_]{0,40}$/.test(k)) continue;
+    if (typeof v === 'string') out[k] = v.slice(0, 5000);
+    else if ((typeof v === 'number' && Number.isFinite(v)) || typeof v === 'boolean') out[k] = v;
+    else if (v && typeof v === 'object') { try { const j = JSON.stringify(v); if (j.length <= 5000) out[k] = JSON.parse(j); } catch {} }
+  }
+  return out;
+}
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isMobile = isIOS || /android/i.test(navigator.userAgent);
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -419,11 +437,12 @@ function cardHTML(c, sample){
   const tag = sample ? 'div' : 'button';
   const av = isThumb(c.thumb) ? `<img src="${esc(c.thumb)}" alt="">` : esc(first(c.name));
   return `<${tag} class="card${sample ? ' sample' : ''}"${sample ? '' : ` type="button" data-id="${esc(c.id)}"`} style="--accent:${colorVar(c.color)}">
-      <span class="hearts" title="${esc(IMP_LABEL[c.importance] || '')}">${hearts(c.importance || 1)}</span>
+      <span class="hearts" title="${esc(IMP_LABEL[c.importance] || '')}">${impMark(c.importance)}</span>
       <span class="card-top">
         <span class="avatar">${av}</span>
         <span class="who">
           <span class="card-name">${esc(c.name)}</span>
+          ${c.community ? `<span class="card-community">👥 ${esc(c.community)}</span>` : ''}
           ${c.company ? `<span class="card-company">🏢 ${esc(c.company)}</span>` : ''}
         </span>
       </span>
@@ -434,15 +453,17 @@ function cardHTML(c, sample){
       ${sample ? '<span class="sample-tag">見本</span>' : ''}
     </${tag}>`;
 }
+function sorted(list){
+  const sort = $('#sort').value, rank = c => IMP_RANK[c.importance] ?? 1;
+  return list.slice().sort((a, b) => sort === 'old' ? a.created - b.created
+    : sort === 'name' ? a.name.localeCompare(b.name, 'ja')
+    : sort === 'imp' ? (rank(b) - rank(a)) || (b.created - a.created)
+    : b.created - a.created);
+}
 function render(){
   const q = $('#q').value.trim().toLowerCase();
-  const list = cards.filter(c => (!filterImp || c.importance === filterImp) &&
-    (!q || [c.name, c.company, c.email, c.tel, c.address, c.memo, ...(c.sns || []).map(s => s.value)].join(' ').toLowerCase().includes(q)));
-  const sort = $('#sort').value;
-  list.sort((a, b) => sort === 'old' ? a.created - b.created
-    : sort === 'name' ? a.name.localeCompare(b.name, 'ja')
-    : sort === 'imp' ? (b.importance - a.importance) || (b.created - a.created)
-    : b.created - a.created);
+  const list = sorted(cards.filter(c => (!filterImp || c.importance === filterImp) &&
+    (!q || [c.name, c.community, c.company, c.email, c.tel, c.address, c.memo, ...(c.sns || []).map(s => s.value)].join(' ').toLowerCase().includes(q))));
   const ready = state === 'ready';
   const showSample = !ready || !cards.length;
   $('#grid').innerHTML = showSample ? cardHTML(SAMPLE, true) : list.map(c => cardHTML(c)).join('');
@@ -457,6 +478,7 @@ function render(){
   $('#addBtn').hidden = !ready;
   $('#exportBtn').hidden = !ready;
   $('#importBtn').hidden = !ready;
+  $('#xlsxBtn').hidden = !ready;
   renderBanners();
 }
 function renderBanners(){
@@ -532,7 +554,7 @@ function openForm(card){
   if (state !== 'ready') return;
   editing = card || null;
   $('#formTitle').textContent = card ? '✏️ 名刺をへんしゅう' : '🌸 名刺をついか';
-  $('#f-name').value = card?.name || ''; $('#f-company').value = card?.company || '';
+  $('#f-name').value = card?.name || ''; $('#f-community').value = card?.community || ''; $('#f-company').value = card?.company || '';
   $('#f-tel').value = card?.tel || ''; $('#f-mail').value = card?.email || '';
   $('#f-addr').value = card?.address || ''; $('#f-memo').value = card?.memo || '';
   $('#snsList').innerHTML = ''; (card?.sns || []).forEach(s => snsRow(s.type, s.value));
@@ -552,15 +574,17 @@ async function handleFile(f){
   try { const {blob, thumb} = await processImage(f); setImg({blob, thumb, url: URL.createObjectURL(blob), own: true}); }
   catch { toast('画像を読み込めませんでした。JPEGかPNGの画像を選んでください'); }
 }
+// 追加した項目（community など）は必須にせず、無ければ空にする。知らない項目は extras() で残す
 function cleanCard(c, keepTimes){
   const now = Date.now();
   return {
+    ...extras(c),
     id: c.id,
-    name: str(c.name, 200), company: str(c.company, 200), tel: str(c.tel, 100), email: str(c.email, 254),
+    name: str(c.name, 200), community: str(c.community, 200), company: str(c.company, 200), tel: str(c.tel, 100), email: str(c.email, 254),
     address: str(c.address, 500), memo: str(c.memo, 5000),
     sns: (Array.isArray(c.sns) ? c.sns : []).filter(s => s && typeof s === 'object')
       .map(s => ({type: SNS.includes(s.type) ? s.type : 'その他', value: str(s.value, 300)})).filter(s => s.value).slice(0, 20),
-    importance: [1, 2, 3].includes(Number(c.importance)) ? Number(c.importance) : 1,
+    importance: [1, 2, 3, SHOP].includes(Number(c.importance)) ? Number(c.importance) : 1,
     color: normColor(c.color),
     thumb: isThumb(c.thumb) ? c.thumb : null, hasImage: !!c.hasImage,
     created: num(c.created) || now,
@@ -580,7 +604,8 @@ $('#form').onsubmit = async e => {
     if (formImg?.blob) { image = {type: formImg.blob.type || 'image/jpeg', data: await formImg.blob.arrayBuffer()}; thumb = formImg.thumb; hasImage = true; }
     else if (!formImg) { image = hasImage ? null : undefined; thumb = null; hasImage = false; }
     const card = cleanCard({
-      id, name, company: $('#f-company').value, tel: $('#f-tel').value, email: $('#f-mail').value,
+      ...(editing || {}),
+      id, name, community: $('#f-community').value, company: $('#f-company').value, tel: $('#f-tel').value, email: $('#f-mail').value,
       address: $('#f-addr').value, memo: $('#f-memo').value,
       sns: [...document.querySelectorAll('#snsList .sns-row')].map(r => ({type: r.querySelector('select').value, value: r.querySelector('input').value})),
       importance: formImp, color: formColor, thumb, hasImage, created: editing?.created
@@ -622,8 +647,9 @@ function openDetail(c){
     <div class="detail-head">
       <div class="avatar" style="--accent:${colorVar(c.color)}">${isThumb(c.thumb) ? `<img src="${esc(c.thumb)}" alt="">` : esc(first(c.name))}</div>
       <div><h2 style="margin:0">${esc(c.name)}</h2>
+        ${c.community ? `<div class="sub">👥 ${esc(c.community)}</div>` : ''}
         ${c.company ? `<div class="sub">🏢 ${esc(c.company)}</div>` : ''}
-        <div>${hearts(c.importance || 1)} <small class="sub">${esc(IMP_LABEL[c.importance] || '')}</small></div></div>
+        <div>${impMark(c.importance)} <small class="sub">${esc(IMP_LABEL[c.importance] || '')}</small></div></div>
     </div>
     ${c.hasImage ? `<img class="detail-img" alt="名刺の画像（タップで拡大）" data-zoom${isThumb(c.thumb) ? ` src="${esc(c.thumb)}"` : ''}>` : ''}
     <div class="info-list">
@@ -673,6 +699,15 @@ function download(file){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+// スマホでは共有シート（「ファイルに保存」など）、それ以外はダウンロード。false = キャンセルされた
+async function deliver(file, title){
+  if (isMobile && navigator.canShare?.({files: [file]})) {
+    try { await navigator.share({files: [file], title}); return true; }
+    catch (e) { if (e?.name === 'AbortError') return false; }
+  }
+  download(file);
+  return true;
+}
 async function exportBackup(){
   if (state !== 'ready') return;
   if (!cards.length) { toast('保存する名刺がまだありません'); return; }
@@ -687,12 +722,7 @@ async function exportBackup(){
     }
     const file = new File([JSON.stringify({app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), cards: out})],
       `meishibako-backup-${ymd()}.json`, {type: 'application/json'});
-    let shared = false;
-    if (isMobile && navigator.canShare?.({files: [file]})) {
-      try { await navigator.share({files: [file], title: 'めいしばこのバックアップ'}); shared = true; }
-      catch (e) { if (e?.name === 'AbortError') return; }
-    }
-    if (!shared) download(file);
+    if (!await deliver(file, 'めいしばこのバックアップ')) return;
     await setMeta({lastBackup: Date.now(), dirtySince: null, snoozeUntil: 0});
     toast(`${cards.length}枚をバックアップしました 📦`);
   } catch { toast('バックアップを作れませんでした。もう一度ためしてください'); }
@@ -723,8 +753,119 @@ async function importCards(list){
   return r;
 }
 
+/* ---------- Excel 書き出し ----------
+   .xlsx は「XMLファイルをZIPにまとめたもの」なので、外部ライブラリを使わずにここで組み立てる。
+   文字はすべて文字列セルとして書くので、= で始まる内容が数式として動くこともない */
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLSX_COLS = [
+  ['なまえ', 18, c => c.name],
+  ['コミュニティ', 20, c => c.community],
+  ['会社名', 24, c => c.company],
+  ['電話番号', 16, c => c.tel],
+  ['メールアドレス', 28, c => c.email],
+  ['住所', 32, c => c.address],
+  ['SNS', 30, c => (c.sns || []).map(s => `${s.type}: ${s.value}`).join('\n'), 'wrap'],
+  ['重要度', 14, c => IMP_LABEL[c.importance] || ''],
+  ['メモ', 40, c => c.memo, 'wrap'],
+  ['追加日', 12, c => c.created, 'date'],
+  ['更新日', 12, c => c.updated, 'date']
+];
+const xmlEsc = s => String(s ?? '')
+  .replace(/[^\u0009\u000A\u000D -퟿-�\u{10000}-\u{10FFFF}]/gu, '')   // XMLに入れられない文字は落とす
+  .replace(/_(x[0-9A-Fa-f]{4})_/g, '_x005F_$1_')                                          // Excelの _xHHHH_ 表記として読まれないように
+  .replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const colName = i => { let s = ''; for (let n = i + 1; n; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s; return s; };
+const excelDate = t => { const d = new Date(t); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY + 25569; };
+function sheetXml(rows){
+  const last = colName(XLSX_COLS.length - 1), n = rows.length + 1;
+  const cell = (ref, v, kind) => {
+    if (kind === 'date') return num(v) ? `<c r="${ref}" s="2"><v>${excelDate(v)}</v></c>` : '';
+    const s = String(v ?? '');
+    return s ? `<c r="${ref}" t="inlineStr"${kind === 'wrap' ? ' s="3"' : ''}><is><t xml:space="preserve">${xmlEsc(s)}</t></is></c>` : '';
+  };
+  const head = `<row r="1">${XLSX_COLS.map(([h], i) => `<c r="${colName(i)}1" t="inlineStr" s="1"><is><t>${xmlEsc(h)}</t></is></c>`).join('')}</row>`;
+  const body = rows.map((c, k) => `<row r="${k + 2}">${XLSX_COLS.map(([, , get, kind], i) => cell(colName(i) + (k + 2), get(c), kind)).join('')}</row>`).join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    + `<dimension ref="A1:${last}${n}"/>`
+    + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    + '<sheetFormatPr defaultRowHeight="18"/>'
+    + `<cols>${XLSX_COLS.map(([, w], i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
+    + `<sheetData>${head}${body}</sheetData>`
+    + `<autoFilter ref="A1:${last}${n}"/>`
+    + '</worksheet>';
+}
+function workbookParts(rows){
+  const last = colName(XLSX_COLS.length - 1), n = rows.length + 1, x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const font = b => `<font>${b ? '<b/>' : ''}<sz val="11"/><name val="游ゴシック"/><family val="3"/><charset val="128"/></font>`;
+  return [
+    ['[Content_Types].xml', x + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', x + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<bookViews><workbookView/></bookViews><sheets><sheet name="名刺" sheetId="1" r:id="rId1"/></sheets>'
+      + `<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'名刺'!$A$1:$${last}$${n}</definedName></definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', x + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + '<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy/m/d"/></numFmts>'
+      + `<fonts count="2">${font(false)}${font(true)}</fonts>`
+      + '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE3EC"/><bgColor indexed="64"/></patternFill></fill></fills>'
+      + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+      + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+      + '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+      + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+      + '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+      + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs>'
+      + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+    ['xl/worksheets/sheet1.xml', sheetXml(rows)]
+  ];
+}
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+const crc32 = bytes => { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+// 圧縮なし（store）のZIPを作る
+function zipStore(entries, type){
+  const enc = new TextEncoder(), parts = [], central = [], d = new Date();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let offset = 0;
+  for (const [name, text] of entries) {
+    const nm = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(10, time, true); lh.setUint16(12, date, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nm.length, true);
+    parts.push(new Uint8Array(lh.buffer), nm, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nm.length, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nm);
+    offset += 30 + nm.length + data.length;
+  }
+  const size = central.reduce((s, a) => s + a.length, 0), end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], {type});
+}
+async function exportExcel(){
+  if (state !== 'ready') return;
+  if (!cards.length) { toast('書き出す名刺がまだありません'); return; }
+  const btn = $('#xlsxBtn'); btn.disabled = true;
+  try {
+    const rows = sorted(cards);
+    const file = new File([zipStore(workbookParts(rows), XLSX_MIME)], `meishibako-${ymd()}.xlsx`, {type: XLSX_MIME});
+    if (await deliver(file, 'めいしばこ（Excel）')) toast(`${rows.length}枚をExcelファイルに書き出しました 📊`);
+  } catch { toast('Excelファイルを作れませんでした。もう一度ためしてください'); }
+  finally { btn.disabled = false; }
+}
+
 /* ---------- イベント ---------- */
 $('#addBtn').onclick = () => openForm();
+$('#xlsxBtn').onclick = exportExcel;
 $('#cancelBtn').onclick = closeEdit;
 $('#addSns').onclick = () => snsRow();
 $('#impPick').onclick = e => { const b = e.target.closest('button'); if (b) setImp(+b.dataset.v); };
