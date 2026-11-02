@@ -201,6 +201,10 @@ button.role:disabled{opacity:1;cursor:default}
 .members li .add-link{margin-left:auto;flex:none}
 .add-link.danger,.add-link.armed{color:var(--danger)}
 .danger-zone{margin-top:20px;border-top:2px dashed var(--line);padding-top:14px;display:flex;justify-content:flex-end}
+.imp-sum{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
+.imp-sum li{background:var(--field);border-radius:12px;padding:10px 12px;font-size:14px;overflow-wrap:anywhere}
+.imp-sum small{display:block;color:var(--text-sub);margin-top:2px}
+.note-l.cols{overflow-wrap:anywhere}
 
 .zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:80;padding:16px;cursor:zoom-out}
 .zoom.show{display:flex}
@@ -263,10 +267,10 @@ button.role:disabled{opacity:1;cursor:default}
 <footer class="wrap foot">
   <div class="foot-btns">
     <button type="button" class="btn btn-sub" id="exportBtn" hidden>📦 バックアップ保存</button>
-    <button type="button" class="btn btn-sub" id="importBtn" hidden>📂 バックアップ読み込み</button>
+    <button type="button" class="btn btn-sub" id="importBtn" hidden>📂 読み込み（バックアップ・Excel）</button>
     <button type="button" class="btn btn-sub" id="xlsxBtn" hidden>📊 Excelで書き出し</button>
     <button type="button" class="btn btn-sub" id="installBtn" hidden>📲 アプリとして追加</button>
-    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <input type="file" id="importFile" accept=".json,.xlsx,.csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
   </div>
   <p class="note" id="backupInfo"></p>
   <p class="note" id="storageNote">名刺はこの端末のブラウザの中だけに保存され、どこにも送信されません。ブラウザのデータを消したり機種変更したりすると消えてしまうので、ときどき「バックアップ保存」をしてください。別の端末には、バックアップファイルを読み込めば移せます。</p>
@@ -363,6 +367,8 @@ button.role:disabled{opacity:1;cursor:default}
 </div>
 <div class="overlay" id="groupOv"><div class="modal" id="groupPanel" role="dialog" aria-modal="true"></div></div>
 <div class="overlay" id="joinOv"><div class="modal small" id="joinPanel" role="dialog" aria-modal="true"></div></div>
+<!-- Excel・CSV を読み込む前の確認 -->
+<div class="overlay" id="importOv"><div class="modal small" id="importPanel" role="dialog" aria-modal="true"></div></div>
 <div class="zoom" id="zoom"><img alt="名刺の画像"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -479,6 +485,11 @@ async function dbPut(card, image){
   else if (image) t.objectStore('images').put(image, card.id);
   await done(t);
 }
+async function dbPutMany(list){
+  const t = idb.transaction('cards', 'readwrite'), s = t.objectStore('cards');
+  for (const c of list) s.put(c);
+  await done(t);
+}
 async function dbDelete(id){
   const t = idb.transaction(['cards', 'images'], 'readwrite');
   t.objectStore('cards').delete(id); t.objectStore('images').delete(id);
@@ -582,7 +593,7 @@ function render(){
     : state === 'error'   ? (inGroup ? 'グループの名刺を読み込めませんでした。<br>ネットにつながっているか確かめて、開き直してください。'
                                      : 'このブラウザでは名刺を保存できません。<br>プライベートブラウズを使っている場合は、ふつうのウィンドウで開いてください。')
     : !cards.length       ? (inGroup ? 'このグループにはまだ名刺がありません。上は見本です。<br>右下の ＋ から追加すると、メンバー全員に表示されます。'
-                                     : 'まだ名刺がありません。上は見本です。<br>右下の ＋ から1枚目を追加してね。<br><small>前の「めいしばこ」のバックアップがあれば、下の「📂 バックアップ読み込み」から移せます。</small>')
+                                     : 'まだ名刺がありません。上は見本です。<br>右下の ＋ から1枚目を追加してね。<br><small>めいしばこのバックアップや、ほかの人からもらった Excel があれば、下の「📂 読み込み」から移せます。</small>')
     : 'みつかりませんでした…';
   $('#storageNote').textContent = inGroup
     ? `「${box.name}」の名刺は、グループのメンバー全員が見たり編集したりできます。ネットにつながっていないときに追加・編集した分は、つながったときに自動で送られます。`
@@ -1009,6 +1020,349 @@ async function exportExcel(){
   finally { btn.disabled = false; }
 }
 
+/* ---------- Excel・CSV 読み込み ----------
+   ほかの人が「📊 Excelで書き出し」した Excel や、名刺アプリ・手作りの一覧表（.xlsx / .csv）を読み込む。
+   ・見出しの行（「なまえ」「氏名」「会社名」など）を見て、めいしばこの項目に当てはめる
+   ・当てはまらない列も消さずに「列名：値」としてメモに入れる
+   ・なまえと会社名が同じ名刺がすでにあれば、新しく作らずに空いている項目だけを足す（入っている内容は上書きしない）
+   ・画像は入らない（画像ごと移したいときはバックアップ .json を使う）
+   .xlsx は ZIP にまとめた XML なので、ブラウザの DecompressionStream と DOMParser だけで読む */
+const IMPORT_MAX_BYTES = 20 * 1024 * 1024, IMPORT_MAX_XML = 80 * 1024 * 1024, IMPORT_MAX_ROWS = 5000;
+const FIELD_LABEL = {name: 'なまえ', sei: 'なまえ（姓）', mei: 'なまえ（名）', community: 'コミュニティ', company: '会社名', department: '部署', title: '役職', postal: '郵便番号', address: '住所',
+  tel: '電話番号', mobile: '携帯電話番号', fax: 'FAX', email: 'メールアドレス', sns: 'SNS', importance: '重要度', exchangedOn: '名刺交換日', memo: 'メモ'};
+// 見出しの言いかえ。くらべるときは normHead で、全角/半角・大文字/小文字・空白や記号のちがいをそろえる
+const HEAD_WORDS = {
+  name: 'なまえ 名前 氏名 お名前 姓名 フルネーム 担当者 担当者名 name fullname',
+  sei: '姓 苗字 名字 lastname familyname surname',
+  mei: '名 firstname givenname',
+  community: 'コミュニティ コミュニティー 団体 団体名 所属団体 サークル グループ community',
+  company: '会社名 会社 企業名 企業 法人名 組織名 組織 勤務先 社名 店名 店舗名 屋号 company companyname organization organisation',
+  department: '部署 部署名 部門 部門名 部課 所属部署 所属 department division dept',
+  title: '役職 役職名 肩書 肩書き 職位 職名 title jobtitle position',
+  postal: '郵便番号 〒 郵便 zip zipcode postalcode postcode',
+  address: '住所 所在地 会社住所 勤務先住所 address',
+  tel: '電話番号 電話 tel telephone phone phonenumber 会社電話 会社電話番号 tel会社 tel部門 tel直通 代表電話 代表電話番号 直通 直通電話 固定電話 電話番号会社',
+  mobile: '携帯電話番号 携帯電話 携帯 携帯番号 mobile mobilephone cell cellphone tel携帯 携帯tel 携帯電話会社',
+  fax: 'fax fax番号 ファックス ファクス ファックス番号 faxnumber',
+  email: 'メールアドレス メール email mail eメール eメールアドレス emailアドレス mailaddress emailaddress',
+  sns: 'sns url ホームページ webサイト ウェブサイト website web hp',
+  importance: '重要度 重要 ランク 優先度',
+  exchangedOn: '名刺交換日 交換日 出会った日 会った日 面会日',
+  memo: 'メモ 備考 注記 コメント note notes memo comment comments',
+  skip: '追加日 更新日 登録日 作成日 最終更新日 no 番号 通し番号 連番 id #'
+};
+const normHead = s => String(s ?? '').normalize('NFKC').toLowerCase().replace(/[\s・()（）\[\]【】「」『』:：\-_/.。、,]/g, '');
+const HEAD_MAP = new Map(Object.entries(HEAD_WORDS).flatMap(([f, ws]) => ws.split(' ').map(w => [normHead(w), f])));
+const headMap = k => HEAD_MAP.get(k) ?? HEAD_MAP.get(k.replace(/\d+$/, ''));   // 「住所2」「電話番号1」なども
+function lookupHead(h){
+  const k = normHead(h), direct = headMap(k), s = String(h ?? '').normalize('NFKC');
+  if (direct) return direct;
+  if (/カナ|かな|ふりがな|フリガナ|よみ|読み|ヨミ|kana|yomi/i.test(s)) return undefined;   // 「氏名（カナ）」などの読みがなの列はメモへ
+  const bare = normHead(s.replace(/\(.*?\)|【.*?】|\[.*?\]/g, ''));                       // 「電話番号（会社）」→「電話番号」
+  return bare && bare !== k ? headMap(bare) : undefined;
+}
+const importError = (code, msg) => Object.assign(new Error(msg || code), {code});
+
+// 数字のセル：電話番号の先頭の0や、郵便番号の先頭の0が、Excel で消えていることがあるので戻す
+const cellText = v => typeof v === 'number' ? (Number.isInteger(v) ? String(v) : String(+v.toPrecision(12))) : String(v ?? '').trim();
+const telText = v => { const s = cellText(v); return /^[1-9]\d{8,9}$/.test(s) ? '0' + s : s; };
+const postalText = v => { const s = cellText(v); return /^\d{5,6}$/.test(s) ? s.padStart(7, '0') : s; };
+// Excel の日付（1900年1月1日からの日数）を「YYYY-MM-DD」に
+const serialDay = (n, d1904) => {
+  if (!(n >= 1 && n < 2958466)) return '';
+  const d = new Date(Math.round((Math.floor(n) + (d1904 ? 1462 : 0) - 25569) * DAY));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+};
+function importDay(v, d1904){
+  if (typeof v === 'number') return normDay(serialDay(v, d1904));
+  let s = String(v).normalize('NFKC').trim();
+  const era = /^(令和|平成|R|H)(\d{1,2}|元)年(\d{1,2})月(\d{1,2})日/.exec(s);
+  if (era) s = `${(/^(令和|R)$/.test(era[1]) ? 2018 : 1988) + (era[2] === '元' ? 1 : +era[2])}-${era[3]}-${era[4]}`;
+  const jp = /^(\d{4})年(\d{1,2})月(\d{1,2})日/.exec(s);
+  if (jp) s = `${jp[1]}-${jp[2]}-${jp[3]}`;
+  return normDay(s.split(/[\sT]/)[0]);
+}
+function importImp(v){
+  if (typeof v === 'number') return v === 4 ? SHOP : [1, 2, 3].includes(v) ? v : 1;
+  const s = String(v).normalize('NFKC').trim();
+  if (/^[1-4]$/.test(s)) return s === '4' ? SHOP : +s;
+  if (/おみせ|お店|店|⭐|★/.test(s)) return SHOP;
+  const hearts = s.split('💖').length - 1;
+  if (/とっても|最重要|超重要/.test(s) || hearts >= 3) return 3;
+  if (/だいじ|大事|重要/.test(s) || hearts === 2) return 2;
+  return 1;
+}
+// SNS は「X: @id」の形の行を種類つきで読む。それ以外の行（URL など）は「その他」
+function importSns(v){
+  return cellText(v).split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const m = /^([^:：]{1,20})\s*[:：]\s*(.+)$/.exec(l);
+    if (m && !/^https?$/i.test(m[1].trim())) {
+      const k = m[1].trim().toLowerCase(), t = k === 'twitter' ? 'X' : SNS.find(x => x.toLowerCase() === k);
+      if (t) return {type: t, value: m[2].trim()};
+    }
+    return {type: 'その他', value: l};
+  });
+}
+
+/* .xlsx（ZIP）を開く。壊れたファイルや、ふくらませると巨大になるファイルで画面が固まらないように上限を決めておく */
+async function inflateRaw(bytes, limit){
+  let ds;
+  try { ds = new DecompressionStream('deflate-raw'); } catch { throw importError('nodecomp'); }
+  const reader = new Blob([bytes]).stream().pipeThrough(ds).getReader(), parts = [];
+  let total = 0;
+  for (;;) {
+    const r = await reader.read();
+    if (r.done) break;
+    total += r.value.length;
+    if (total > limit) { reader.cancel().catch(() => {}); throw importError('toolarge'); }
+    parts.push(r.value);
+  }
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+function zipEntries(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), files = new Map(), dec = new TextDecoder();
+  let e = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw importError('xlsx');
+  let p = dv.getUint32(e + 16, true);
+  for (let k = dv.getUint16(e + 10, true); k > 0; k--) {
+    if (p + 46 > u8.length || dv.getUint32(p, true) !== 0x02014b50) throw importError('xlsx');
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nl)).replace(/\\/g, '/').replace(/^\//, '');
+    files.set(name, {method: dv.getUint16(p + 10, true), csize: dv.getUint32(p + 20, true), off: dv.getUint32(p + 42, true)});
+    p += 46 + nl + xl + cl;
+  }
+  return files;
+}
+async function zipText(u8, files, name, budget){
+  const f = files.get(name);
+  if (!f) return null;
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (f.off + 30 > u8.length || dv.getUint32(f.off, true) !== 0x04034b50) throw importError('xlsx');
+  const start = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true), raw = u8.subarray(start, start + f.csize);
+  const data = f.method === 0 ? raw : f.method === 8 ? await inflateRaw(raw, budget.left) : null;
+  if (!data) throw importError('xlsx');
+  if ((budget.left -= data.length) < 0) throw importError('toolarge');
+  return new TextDecoder().decode(data);
+}
+// Excel の XML には DOCTYPE は出てこない。あれば読まない（外部実体や実体の展開をさせないため）
+function xmlParse(text){
+  if (/<!DOCTYPE/i.test(text)) throw importError('xlsx');
+  const d = new DOMParser().parseFromString(text, 'application/xml');
+  if (d.getElementsByTagName('parsererror').length) throw importError('xlsx');
+  return d;
+}
+const xAll = (el, name) => Array.from(el.getElementsByTagNameNS('*', name));
+const xKid = (el, name) => Array.from(el.children).find(x => x.localName === name);
+const unx = s => s.replace(/_x([0-9A-Fa-f]{4})_/g, (_, h) => String.fromCharCode(parseInt(h, 16)));   // Excel の _x000D_ などの書き方を元の文字に
+// 共有文字列・セル内の文字。ふりがな（<rPh>）は入れない
+const richText = el => unx(xAll(el, 't').filter(t => t.parentElement?.localName !== 'rPh').map(t => t.textContent).join(''));
+const colIndex = ref => { const m = /^([A-Za-z]{1,3})\d*$/.exec(ref || ''); if (!m) return -1; let n = 0; for (const ch of m[1].toUpperCase()) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+async function readXlsx(buf){
+  const u8 = new Uint8Array(buf), files = zipEntries(u8), budget = {left: IMPORT_MAX_XML};
+  const wbText = await zipText(u8, files, 'xl/workbook.xml', budget);
+  if (!wbText) throw importError('xlsx');
+  const wb = xmlParse(wbText);
+  const d1904 = /^(1|true)$/i.test(xAll(wb, 'workbookPr')[0]?.getAttribute('date1904') || '');
+  const sheets = xAll(wb, 'sheet').map(s => ({name: s.getAttribute('name') || '', rid: Array.from(s.attributes).find(a => a.localName === 'id')?.value}));
+  if (!sheets.length) throw importError('xlsx');
+  const relsText = await zipText(u8, files, 'xl/_rels/workbook.xml.rels', budget);
+  const rels = relsText ? xAll(xmlParse(relsText), 'Relationship') : [];
+  const resolve = t => { if (t.startsWith('/')) return t.slice(1); const parts = ['xl']; for (const seg of t.split('/')) { if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); } return parts.join('/'); };
+  const relTarget = pred => { const r = rels.find(pred); return r ? resolve(r.getAttribute('Target') || '') : null; };
+  const sheet = sheets.find(s => s.name === '名刺') || sheets[0];
+  const sheetPath = relTarget(r => r.getAttribute('Id') === sheet.rid) || 'xl/worksheets/sheet1.xml';
+  const sstText = await zipText(u8, files, relTarget(r => /\/sharedStrings$/.test(r.getAttribute('Type') || '')) || 'xl/sharedStrings.xml', budget);
+  const sst = sstText ? xAll(xmlParse(sstText), 'si').map(richText) : [];
+  const sheetText = await zipText(u8, files, sheetPath, budget);
+  if (!sheetText) throw importError('xlsx');
+  const rows = [];
+  for (const r of xAll(xmlParse(sheetText), 'row')) {
+    const row = [];
+    let next = 0;
+    for (const c of Array.from(r.children).filter(x => x.localName === 'c')) {
+      let ci = colIndex(c.getAttribute('r'));
+      if (ci < 0) ci = next;
+      next = ci + 1;
+      if (ci > 255) continue;
+      const t = c.getAttribute('t') || 'n', v = xKid(c, 'v')?.textContent ?? '';
+      let val;
+      if (t === 's') val = sst[+v] ?? '';
+      else if (t === 'inlineStr') { const is = xKid(c, 'is'); val = is ? richText(is) : ''; }
+      else if (t === 'str' || t === 'd') val = unx(v);
+      else if (t === 'b') val = v === '1' ? 'TRUE' : 'FALSE';
+      else if (t === 'e') val = '';
+      else val = v === '' ? '' : Number(v);
+      if (val !== '' && !(typeof val === 'number' && !Number.isFinite(val))) row[ci] = val;
+    }
+    rows.push(row);
+  }
+  return {sheet: sheet.name, rows, d1904};
+}
+// CSV：UTF-8（BOM あり・なし）、Excel の「CSV（コンマ区切り）」の Shift_JIS、UTF-16 を読む。区切りはコンマかタブ
+function decodeCsv(buf){
+  const u8 = new Uint8Array(buf);
+  if (u8[0] === 0xFF && u8[1] === 0xFE) return new TextDecoder('utf-16le').decode(u8);
+  if (u8[0] === 0xFE && u8[1] === 0xFF) return new TextDecoder('utf-16be').decode(u8);
+  try { return new TextDecoder('utf-8', {fatal: true}).decode(u8); }
+  catch { return new TextDecoder('shift_jis').decode(u8); }
+}
+function parseCsv(text){
+  const firstLine = text.split(/\r?\n/, 1)[0] || '';
+  const sep = (firstLine.split('\t').length > firstLine.split(',').length) ? '\t' : ',';
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+      else cell += ch;
+    } else if (ch === '"' && cell === '') quoted = true;
+    else if (ch === sep) { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.map(r => r.map(v => v.trim()));
+}
+// 表（行の配列）→ 名刺。見出しの行は、上から20行のうち「なまえ」にあたる列がある最初の行
+function tableToCards(rows, d1904){
+  let hi = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    if ((rows[i] || []).some(v => typeof v === 'string' && ['name', 'sei', 'mei'].includes(lookupHead(v)))) { hi = i; break; }
+  }
+  if (hi < 0) throw importError('nohead');
+  const head = rows[hi], heads = [];
+  head.forEach((v, c) => { const h = cellText(v); if (h) heads.push({c, h, f: lookupHead(h)}); });
+  const hasName = heads.some(x => x.f === 'name'), hasSei = heads.some(x => x.f === 'sei');
+  const plan = [], used = new Set(), memoCols = [], skipped = [];
+  for (const x of heads) {
+    let f = x.f;
+    if ((f === 'sei' || f === 'mei') && hasName) f = 'skip';   // 「氏名」の列があれば、姓・名の列は使わない
+    else if (f === 'mei' && !hasSei) f = 'name';               // 「名」だけなら、それをなまえとして使う
+    if (f === 'skip') skipped.push(x.h);
+    else if (f) { plan.push({c: x.c, f}); used.add(f === 'sei' || f === 'mei' ? 'name' : f); }
+    else { plan.push({c: x.c, f: 'extra', h: x.h}); memoCols.push(x.h); }
+  }
+  const list = [], base = Date.now();
+  let noName = 0;
+  for (const row of rows.slice(hi + 1)) {
+    if (!row || !row.some(v => cellText(v))) continue;
+    const vals = {}, extra = [];
+    for (const {c, f, h} of plan) {
+      const v = row[c];
+      if (v === undefined || !cellText(v)) continue;
+      if (f === 'extra') extra.push(`${h}：${cellText(v)}`);
+      else (vals[f] ||= []).push(v);
+    }
+    const line = s => s.replace(/\s*\r?\n\s*/g, ' ');   // メモ以外の項目は1行にする
+    const texts = f => (vals[f] || []).map(cellText).filter(Boolean).map(s => f === 'memo' ? s : line(s));
+    const pickFirst = (f, conv) => (vals[f] || []).map(v => line(conv(v))).find(Boolean);
+    const name = texts('name')[0] || [texts('sei')[0], texts('mei')[0]].filter(Boolean).join(' ');
+    if (!str(name, 200)) { noName++; continue; }
+    if (list.length >= IMPORT_MAX_ROWS) throw importError('toomany');
+    list.push(cleanCard({
+      id: newId(), name,
+      community: texts('community')[0], company: texts('company')[0], department: texts('department')[0], title: texts('title')[0],
+      postal: pickFirst('postal', postalText), address: texts('address').join(' '),
+      tel: pickFirst('tel', telText), mobile: pickFirst('mobile', telText), fax: pickFirst('fax', telText),
+      email: texts('email')[0],
+      sns: (vals.sns || []).flatMap(importSns),
+      importance: vals.importance ? importImp(vals.importance[0]) : 1,
+      exchangedOn: vals.exchangedOn ? importDay(vals.exchangedOn[0], d1904) : '',
+      memo: [...texts('memo'), ...extra].join('\n'),
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      thumb: null, hasImage: false, created: base - list.length, updated: base
+    }, true));
+  }
+  return {list, noName, used: [...used], memoCols, skipped};
+}
+// 今の名刺箱とくらべて、追加する名刺と、空いている項目を足す名刺に分ける
+const nkey = s => String(s ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+const cardKey = c => `${nkey(c.name)}|${nkey(c.company)}`;
+const FILL_FIELDS = ['community', 'department', 'title', 'postal', 'address', 'tel', 'mobile', 'fax', 'email', 'sns', 'exchangedOn', 'memo'];
+const isBlank = v => Array.isArray(v) ? !v.length : !v;
+function planImport(list){
+  const byKey = new Map(), fills = new Map(), adds = [];
+  let matched = 0, inFile = 0;
+  for (const c of cards) if (!byKey.has(cardKey(c))) byKey.set(cardKey(c), {card: c, existing: true});
+  for (const c of list) {
+    const hit = byKey.get(cardKey(c));
+    if (!hit) { adds.push(c); byKey.set(cardKey(c), {card: c, existing: false}); continue; }
+    hit.existing ? matched++ : inFile++;
+    const target = hit.existing ? (fills.get(hit.card.id)?.card || {...hit.card}) : hit.card;
+    let changed = false;
+    for (const f of FILL_FIELDS) if (isBlank(target[f]) && !isBlank(c[f])) { target[f] = c[f]; changed = true; }
+    if (changed && hit.existing) { target.updated = Date.now(); fills.set(hit.card.id, {card: target, prev: hit.card}); }
+  }
+  return {adds, fills: [...fills.values()], matched, inFile};
+}
+let pendingImport = null;
+function showImportPreview(info){
+  const plan = planImport(info.list), boxId = box.kind === 'group' ? box.id : 'local';
+  const n = plan.adds.length + plan.fills.length, kind = info.kind;
+  const where = box.kind === 'group' ? `👥 ${box.name}（メンバー全員に表示されます）` : '📱 この端末';
+  const sample = plan.adds.slice(0, 3).map(c => c.name).join('、') + (plan.adds.length > 3 ? ' など' : '');
+  const usedText = Object.keys(FIELD_LABEL).filter(f => info.used.includes(f)).map(f => FIELD_LABEL[f]).join('・');
+  pendingImport = {plan, boxId};
+  $('#importPanel').innerHTML = `
+    <button type="button" class="close-x" data-close aria-label="閉じる">✕</button>
+    <h2>📥 ${esc(kind)}から読み込み</h2>
+    <p class="note-l">「${esc(info.file)}」${info.sheet ? `のシート「${esc(info.sheet)}」` : ''}を読み込みます。<br>読み込み先：${esc(where)}</p>
+    <ul class="imp-sum">
+      <li>🆕 新しく追加する名刺：<b>${plan.adds.length}枚</b>${sample ? `<small>${esc(sample)}</small>` : ''}</li>
+      ${plan.matched ? `<li>🔁 なまえと会社名が同じ名刺がすでにある：<b>${plan.matched}件</b><small>入っている内容はそのまま。空いている項目だけを足します（${plan.fills.length}枚）</small></li>` : ''}
+      ${plan.inFile ? `<li>👯 ファイルの中で同じ人が重なっている行：<b>${plan.inFile}行</b><small>1枚にまとめます</small></li>` : ''}
+      ${info.noName ? `<li>⚠️ なまえが空の行：<b>${info.noName}行</b><small>読み込みません</small></li>` : ''}
+    </ul>
+    <p class="note-l cols">読み取る項目：${esc(usedText)}</p>
+    ${info.memoCols.length ? `<p class="note-l cols">メモに入れる列：${esc(info.memoCols.join('・'))}</p>` : ''}
+    ${info.skipped.length ? `<p class="note-l cols">使わない列：${esc(info.skipped.join('・'))}</p>` : ''}
+    <p class="note-l">画像は${esc(kind)}に入っていないため、読み込まれません。</p>
+    <div class="actions"><button type="button" class="btn btn-sub" id="importNo">やめる</button><button type="button" class="btn btn-main" id="importYes"${n ? '' : ' disabled'}>${n ? '📥 読み込む' : '追加する名刺はありません'}</button></div>`;
+  const p = $('#importPanel');
+  p.querySelector('[data-close]').onclick = closeImport;
+  $('#importNo').onclick = closeImport;
+  $('#importYes').onclick = runImport;
+  showOv('#importOv');
+}
+function closeImport(){ pendingImport = null; hideOv('#importOv'); }
+async function runImport(){
+  const job = pendingImport, btn = $('#importYes');
+  if (!job) return;
+  if (job.boxId !== (box.kind === 'group' ? box.id : 'local') || state !== 'ready') { closeImport(); toast('名刺箱が切り替わったので、読み込みをやめました'); return; }
+  btn.disabled = true; btn.textContent = '読み込んでいます…';
+  try {
+    await savePutMany([...job.plan.adds.map(card => ({card, prev: null})), ...job.plan.fills]);
+    closeImport(); askPersist();
+    const a = job.plan.adds.length, f = job.plan.fills.length;
+    toast((a && f ? `${a}枚を追加・${f}枚に項目を足しました` : a ? `${a}枚を追加しました` : `${f}枚に項目を足しました`) + ' 📥');
+    await afterWrite();
+  } catch (err) { btn.disabled = false; btn.textContent = '📥 読み込む'; toast(saveErrorMsg(err)); }
+}
+function importErrorMsg(e){
+  const c = e?.code;
+  if (c === 'nodecomp') return 'このブラウザでは Excel を読み込めません。ブラウザを新しくするか、Excel で「CSV UTF-8」形式に保存してから読み込んでください';
+  if (c === 'toolarge') return 'ファイルが大きすぎて読み込めません（20MBまで）';
+  if (c === 'toomany') return `行が多すぎます。${IMPORT_MAX_ROWS}行ずつに分けて読み込んでください`;
+  if (c === 'nohead') return 'なまえ（名前・氏名）の列が見つかりませんでした。1行目に「なまえ」「会社名」などの見出しがある表を選んでください';
+  if (c === 'old') return '古い形式（.xls）やパスワード付きのファイルは読めません。Excel で「.xlsx」形式で保存し直してください';
+  return 'Excel ファイルを読み込めませんでした。.xlsx か .csv のファイルを選んでください';
+}
+async function importTable(f, buf, kind){
+  try {
+    const t = kind === 'Excel' ? await readXlsx(buf) : {sheet: '', rows: parseCsv(decodeCsv(buf)), d1904: false};
+    const r = tableToCards(t.rows, t.d1904);
+    if (!r.list.length) { toast('読み込める名刺がありませんでした（なまえが入っている行がありません）'); return; }
+    showImportPreview({...r, file: f.name, sheet: t.sheet, kind});
+  } catch (err) { toast(importErrorMsg(err)); }
+}
+
 /* ---------- グループ（Firebase） ----------
    firebase-config.js に設定があるときだけ動く。設定がなければ「この端末だけ」のまま。
    Cloud Firestore の置き場所：
@@ -1177,7 +1531,7 @@ function openBox(b){
   box = b.kind === 'group' ? {kind: 'group', id: b.id, name: b.name || 'グループ'} : {kind: 'local'};
   ls.set('meishibako:box', box.kind === 'group' ? box.id : 'local');
   if (box.kind === 'group') ls.set('meishibako:boxName', box.name);
-  hideOv('#groupOv'); closeDetail(); closeEdit();
+  hideOv('#groupOv'); closeDetail(); closeEdit(); closeImport();
   renderBoxBtn();
   cards = []; state = 'loading'; render();   // 前の名刺箱の名刺を一瞬でも残さない
   if (box.kind === 'local') { if (idb) reload(); else { state = 'error'; render(); } return; }
@@ -1494,21 +1848,30 @@ async function commitSoon(p){
   if (r === 'queued') p.catch(err => toast(cloudErrorMsg(err)));
 }
 // 編集は「変わった項目だけ」を送る。別々の人が同じ名刺の別の項目を同時に直しても、両方残る
-async function groupPut(gid, card, image, prev){
+function groupBatchPut(b, gid, card, prev){
   const {id, ...data} = card;
-  const cref = fb.doc(fdb, `groups/${gid}/cards/${id}`), iref = fb.doc(fdb, `groups/${gid}/images/${id}`);
+  const cref = fb.doc(fdb, `groups/${gid}/cards/${id}`), by = {updatedBy: me.uid, updatedByName: me.name};
+  if (!prev) { b.set(cref, {...data, createdBy: data.createdBy || me.uid, createdByName: data.createdByName || me.name, ...by}); return; }
+  const patch = {};
+  for (const [k, v] of Object.entries(data)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
+  b.update(cref, {...patch, ...by});
+}
+async function groupPut(gid, card, image, prev){
   const imgDoc = image ? await imageForCloud(image) : null;
-  if (imgDoc) data.imgv = imgDoc.updated; else if (image === null) data.imgv = null;
-  const by = {updatedBy: me.uid, updatedByName: me.name};
-  const b = fb.writeBatch(fdb);
-  if (!prev) b.set(cref, {...data, createdBy: data.createdBy || me.uid, createdByName: data.createdByName || me.name, ...by});
-  else {
-    const patch = {};
-    for (const [k, v] of Object.entries(data)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
-    b.update(cref, {...patch, ...by});
-  }
+  if (imgDoc) card = {...card, imgv: imgDoc.updated}; else if (image === null) card = {...card, imgv: null};
+  const b = fb.writeBatch(fdb), iref = fb.doc(fdb, `groups/${gid}/images/${card.id}`);
+  groupBatchPut(b, gid, card, prev);
   if (imgDoc) b.set(iref, imgDoc); else if (image === null) b.delete(iref);
   await commitSoon(b.commit());
+}
+// まとめて保存（Excel・CSV の読み込み用。画像なし）。グループは200件ずつ1回の書き込みにまとめる
+async function savePutMany(items){
+  if (box.kind === 'local') return dbPutMany(items.map(x => x.card));
+  for (let i = 0; i < items.length; i += 200) {
+    const b = fb.writeBatch(fdb);
+    for (const {card, prev} of items.slice(i, i + 200)) groupBatchPut(b, box.id, card, prev);
+    await commitSoon(b.commit());
+  }
 }
 async function groupDelete(gid, id){
   const b = fb.writeBatch(fdb);
@@ -1535,7 +1898,7 @@ $('#signupBtn').onclick = () => authDo('signup');
 $('#googleBtn').onclick = () => authDo('google');
 $('#resetBtn').onclick = () => authDo('reset');
 $('#authForm [data-close]').onclick = () => hideOv('#authOv');
-for (const [id, close] of [['#boxOv', () => hideOv('#boxOv')], ['#authOv', () => hideOv('#authOv')], ['#groupOv', () => hideOv('#groupOv')], ['#joinOv', closeJoin]])
+for (const [id, close] of [['#boxOv', () => hideOv('#boxOv')], ['#authOv', () => hideOv('#authOv')], ['#groupOv', () => hideOv('#groupOv')], ['#joinOv', closeJoin], ['#importOv', closeImport]])
   $(id).addEventListener('mousedown', e => { if (e.target === e.currentTarget) close(); });   // 名前の入力（#nameOv）は外を押しても閉じない
 // アプリを開いたままのタブで招待リンクを開いたとき（アドレスの # だけが変わるので、ページは読み直されない）
 addEventListener('hashchange', () => {
@@ -1572,6 +1935,7 @@ document.addEventListener('keydown', e => {
   if (open('#zoom')) $('#zoom').classList.remove('show');
   else if (open('#nameOv')) { if (!$('#nameCancel').hidden) $('#nameCancel').click(); }
   else if (open('#joinOv')) closeJoin();
+  else if (open('#importOv')) closeImport();
   else if (open('#authOv')) hideOv('#authOv');
   else if (open('#groupOv')) hideOv('#groupOv');
   else if (open('#boxOv')) hideOv('#boxOv');
@@ -1583,11 +1947,19 @@ $('#exportBtn').onclick = exportBackup;
 $('#nudgeSave').onclick = exportBackup;
 $('#nudgeLater').onclick = async () => { try { await setMeta({snoozeUntil: Date.now() + SNOOZE}); } catch {} renderBanners(); };
 $('#importBtn').onclick = () => $('#importFile').click();
+// 読み込むファイルは中身で見分ける：ZIP（PK）なら Excel、.csv なら CSV、それ以外はバックアップ（.json）
 $('#importFile').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f || state !== 'ready') return;
+  if (f.size > IMPORT_MAX_BYTES) { toast(importErrorMsg({code: 'toolarge'})); return; }
+  let buf;
+  try { buf = await f.arrayBuffer(); } catch { toast('ファイルを開けませんでした'); return; }
+  const h = new Uint8Array(buf.slice(0, 4)), ext = (/\.([a-z0-9]+)$/i.exec(f.name)?.[1] || '').toLowerCase();
+  if (h[0] === 0xD0 && h[1] === 0xCF && h[2] === 0x11 && h[3] === 0xE0) { toast(importErrorMsg({code: 'old'})); return; }
+  if (h[0] === 0x50 && h[1] === 0x4B) return importTable(f, buf, 'Excel');
+  if (['csv', 'tsv', 'txt'].includes(ext) || f.type === 'text/csv') return importTable(f, buf, 'CSV');
   let list;
-  try { const data = JSON.parse(await f.text()); list = Array.isArray(data) ? data : data?.cards; if (!Array.isArray(list)) throw 0; }
-  catch { toast('読み込めませんでした。めいしばこのバックアップファイル（.json）を選んでください'); return; }
+  try { const data = JSON.parse(new TextDecoder().decode(buf)); list = Array.isArray(data) ? data : data?.cards; if (!Array.isArray(list)) throw 0; }
+  catch { toast('読み込めませんでした。めいしばこのバックアップ（.json）か、Excel（.xlsx）・CSV のファイルを選んでください'); return; }
   toast('読み込んでいます…');
   try {
     const r = await importCards(list);
